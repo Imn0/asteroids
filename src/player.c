@@ -1,19 +1,40 @@
 #include <math.h>
-
+#include <SDL2/SDL.h>
 #include "player.h"
 
+void player_apply_physics(Player* player) {
+    // TODO
+    player->speed -= (ACCELERATION_SPEED / 15) * delta_time;
+
+}
 
 void player_rotate(Player* player, i32 direction) {
     player->angle_deg += (direction * ROTATION_SPEED) * delta_time;
-    player->angle_deg = fmod(player->angle_deg, 360.0f);
+    if (player->angle_deg < 0.0f) { player->angle_deg += 360.0f; }
+    else if (player->angle_deg >= 360.0f) { player->angle_deg -= 360.0f; }
 }
 
 void player_accelerate(Player* player) {
-    player->velocity += ACCELERATION_SPEED * delta_time;
+    player->speed += ACCELERATION_SPEED * delta_time;
+    player->position.x += sinf(DEG_TO_RAD(player->angle_deg));
+    player->position.y -= cosf(DEG_TO_RAD(player->angle_deg));
 }
 
-void player_update(Player* player) {
-    player->position.x += player->velocity * cos(DEG_TO_RAD(player->angle_deg)) * delta_time;
-    player->position.y += player->velocity * sin(DEG_TO_RAD(player->angle_deg)) * delta_time;
-    player->velocity *= 0.95f;
+void player_process_input(Player* player) {
+    // rotate left
+    if (state.keystate[SDL_SCANCODE_LEFT]) {
+        player_rotate(player, -1);
+    }
+    // rotate right
+    if (state.keystate[SDL_SCANCODE_RIGHT]) {
+        player_rotate(player, 1);
+    }
+    // accelerate
+    if (state.keystate[SDL_SCANCODE_UP]) {
+        player_accelerate(player);
+    }
+}
+
+void player_update(Player* player){
+    player_apply_physics(player);
 }

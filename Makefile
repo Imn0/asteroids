@@ -4,6 +4,8 @@ CFLAGS = -g
 # CFLAGS = -ggdb3 
 CFLAGS += -Wno-pointer-arith -Wno-unused-parameter -Wno-int-conversion
 # CFLAGS +=  -fbracket-depth=1024
+CFLAGS += -Isrc/headers
+CFLAGS += -Isrc/common
 LDFLAGS = -lm -lSDL2main -lSDL2 -lSDL2_mixer -lSDL2_image -lSDL2_ttf
 
 SRC  = $(wildcard src/**/*.c) $(wildcard src/*.c) $(wildcard src/**/**/*.c) $(wildcard src/**/**/**/*.c)
