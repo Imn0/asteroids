@@ -9,20 +9,26 @@
 #include "player.h"
 
 State state;
-Player player;
+
+Player remote_player;
+Player local_player;
 
 NetworkState network_state;
 f32 delta_time;
 
 i32 main(i32 argc, i8* argv[]) {
 
+    bool online_disable = true;
     network_state.is_server = true;
     if (argc > 1 && !strcmp(argv[1], "client")) {
         if (argc != 3) {
             fprintf(stderr, "Usage: %s client <port>\n", argv[0]);
             return -1;
         }
+        online_disable = false;
         network_state.is_server = false;
+    } if (argc > 1 && !strcmp(argv[1], "multi")) {
+        online_disable = false;
     }
 
 
@@ -31,14 +37,16 @@ i32 main(i32 argc, i8* argv[]) {
 
     game_init();
     game_load_imgs();
+    if (!online_disable) {
 
-    if (network_state.is_server == true) {
-        server_init();
-    }
-    else {
-        i32 client_port = 0;
-        client_port = atoi(argv[2]);
-        client_init(client_port);
+        if (network_state.is_server == true) {
+            server_init();
+        }
+        else {
+            i32 client_port = 0;
+            client_port = atoi(argv[2]);
+            client_init(client_port);
+        }
     }
 
     u32 last_time = SDL_GetTicks(), current_time;
@@ -55,10 +63,11 @@ i32 main(i32 argc, i8* argv[]) {
 
         game_get_input();
         if (state.exit) { continue; }
-
-        if (remote_update_accumulator >= remote_update_interval) {
-            game_update_remote();
-            remote_update_accumulator -= remote_update_interval;
+        if (!online_disable) {
+            if (remote_update_accumulator >= remote_update_interval) {
+                game_update_remote();
+                remote_update_accumulator -= remote_update_interval;
+            }
         }
 
         game_process();

@@ -1,5 +1,6 @@
 #include "common.h"
 #include "netcode.h"
+#include "player.h"
 
 Packet* packet_from_player(Player* player) {
     Packet* packet = malloc(sizeof(Packet));
@@ -8,11 +9,12 @@ Packet* packet_from_player(Player* player) {
     packet->size = sizeof(PlayerPacket);
     packet->payload.player = (PlayerPacket){
         .angle = player->angle_deg,
-        .rotation_speed = player->rotation_speed,
-        .speed = player->speed,
+        .v_x = player->velocity.x,
+        .v_y = player->velocity.y,
         .x = player->position.x,
-        .y = player->position.y
+        .y = player->position.y,
     };
+    memcpy(&packet->payload.player.flags,&player->flags, sizeof(player_flags_t));
 
     return packet;
 }
@@ -140,8 +142,9 @@ void update_player_from_queue(PacketQueue* queue, Player* player) {
     player->angle_deg = packet.angle;
     player->position.x = packet.x;
     player->position.y = packet.y;
-    player->rotation_speed = packet.rotation_speed;
-    player->speed = packet.speed;
+
+    player->velocity.x = packet.v_x;
+    player->velocity.y = packet.v_y;
     printf("freeing %ud\n", p);
     free(p);
 }

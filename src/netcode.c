@@ -7,11 +7,13 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <threads.h>
+#include <errno.h>
 
 #include "common.h"
 #include "netcode.h"
 
 i32 server_init() {
+    atomic_store(&network_state.running, true);
     const int fd = socket(PF_INET, SOCK_STREAM, 0);
     struct sockaddr_in addr = { 0 };
     addr.sin_family = AF_INET;
@@ -30,8 +32,7 @@ i32 server_init() {
     struct sockaddr_storage caddr;
     socklen_t caddr_len = sizeof(caddr);
     network_state.socket_fd = accept(fd, (struct sockaddr*)&caddr, &caddr_len);
-
-
+    printf("connection accepted\n");
     thrd_create(
         &network_state.receive.receive_thrd,
         receive_packets,
@@ -41,11 +42,11 @@ i32 server_init() {
         send_packets,
         &network_state.socket_fd);
 
-
     return ERR_OK;
 }
 
 i32 client_init(i32 client_port) {
+    atomic_store(&network_state.running, true);
     network_state.socket_fd = socket(PF_INET, SOCK_STREAM, 0);
     struct sockaddr_in addr = { 0 };
     addr.sin_family = AF_INET;
@@ -71,33 +72,61 @@ i32 client_init(i32 client_port) {
 i32 receive_packets(void* args) {
     i32 socket_fd = *(i32*)args;
 
-    while (true) {
+    while (atomic_load(&network_state.running)) {
         Packet* packet = malloc(sizeof(Packet));
         ssize_t bytes_received = recv(
             socket_fd,
             packet,
             sizeof(Packet),
             0);
-        if (bytes_received <= 0) {
-            continue;
+
+        if (bytes_received == 0) {
+            // Connection closed by the client
+            printf("Client disconnected.\n");
+            free(packet);
+            break;
+        }
+        else if (bytes_received < 0) {
+            if (errno == EINTR) {
+                // Interrupted system call, try again
+                free(packet);
+                continue;
+            }
+            else {
+             // Other error occurred
+                perror("recv error");
+                free(packet);
+                break;
+            }
         }
 
         packet_queue_enqueue(&network_state.receive.rx_queue, packet);
     }
 
+    close(socket_fd);
     return ERR_OK;
 }
 
 i32 send_packets(void* args) {
-
-
     i32 socket_fd = *(i32*)args;
 
-    while (true) {
+    while (atomic_load(&network_state.running)) {
         Packet* p = NULL;
         while (packet_queue_dequeue(&network_state.transmit.tx_queue, &p)) {
             if (p == NULL) { continue; }
-            send(socket_fd, p, sizeof(Packet), 0);
+            ssize_t bytes_sent = send(socket_fd, p, sizeof(Packet), 0);
+            if (bytes_sent < 0) {
+                if (errno == EINTR) {
+                    // Interrupted system call, try again
+                    continue;
+                }
+                else {
+                 // Other error occurred
+                    perror("send error");
+                    free(p);
+                    return ERR_NETWORK;
+                }
+            }
             free(p);
         }
     }

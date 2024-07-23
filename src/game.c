@@ -7,8 +7,6 @@
 #include "netcode.h"
 #include "player.h"
 
-extern Player player;
-
 i32 game_init() {
     ASSERT(!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS), "Failed to init SDL %s\n", SDL_GetError());
 
@@ -35,10 +33,10 @@ i32 game_init() {
         WINDOW_HEIGHT);
     ASSERT(state.render_target, "Failed to create render target %s\n", SDL_GetError());
 
-    player.angle_deg = 0;
-    player.position = ((V2f) { .x = WINDOW_WIDTH / 2, .y = WINDOW_HEIGHT / 2 });
-    player.speed = 0;
-    player.rotation_speed = 0;
+    local_player.angle_deg = 0;
+    local_player.position = ((V2f32) { .x = WINDOW_WIDTH / 2, .y = WINDOW_HEIGHT / 2 });
+    local_player.velocity.x = 0;
+    local_player.velocity.y = 0;
     state.exit = false;
 
 
@@ -64,30 +62,31 @@ i32 game_get_input() {
         }
     }
     state.keystate = SDL_GetKeyboardState(NULL);
-    player_process_input(&player);
+    player_process_input(&local_player);
 }
 
 i32 game_process() {
-    player_update(&player);
-    player_update(&state.remote_player);
+    player_update(&local_player);
+    player_update(&remote_player);
     return ERR_OK;
 }
 
 i32 game_update_remote() {
     packet_queue_enqueue(
         &network_state.transmit.tx_queue,
-        packet_from_player(&player));
+        packet_from_player(&local_player));
 
     Packet* p = NULL;
     while (packet_queue_dequeue(&network_state.receive.rx_queue, &p)) { ; }
 
     if (p == NULL) { return ERR_OK; /* no updates */ }
     PlayerPacket packet = p->payload.player;
-    state.remote_player.angle_deg = packet.angle;
-    state.remote_player.position.x = packet.x;
-    state.remote_player.position.y = packet.y;
-    state.remote_player.rotation_speed = packet.rotation_speed;
-    state.remote_player.speed = packet.rotation_speed;
+    remote_player.angle_deg = packet.angle;
+    remote_player.position.x = packet.x;
+    remote_player.position.y = packet.y;
+    remote_player.velocity.x = packet.v_x;
+    remote_player.velocity.y = packet.v_y;
+    memcpy(&remote_player.flags, &packet.flags, sizeof(player_flags_t));
     free(p);
 
     return ERR_OK;
@@ -100,25 +99,39 @@ i32 game_render() {
     SDL_RenderClear(state.renderer);
 
     // redner player
-    SDL_Rect player_dstRect = { (int)player.position.x, (int)player.position.y, SPRITE_SIZE, SPRITE_SIZE };
+    SDL_Rect player_dstRect = { (int)local_player.position.x, (int)local_player.position.y, PLAYER_SIZE, PLAYER_SIZE };
     SDL_RenderCopyEx(
         state.renderer,
         state.textures.arr[0],
         NULL,
         &player_dstRect,
-        player.angle_deg,
+        local_player.angle_deg,
         NULL,
         SDL_FLIP_NONE);
 
-    SDL_Rect remote_player_dstRect = { (int)state.remote_player.position.x, (int)state.remote_player.position.y, SPRITE_SIZE, SPRITE_SIZE };
+    SDL_Rect remote_player_dstRect = { (int)remote_player.position.x, (int)remote_player.position.y, PLAYER_SIZE, PLAYER_SIZE };
     SDL_RenderCopyEx(
         state.renderer,
         state.textures.arr[0],
         NULL,
         &remote_player_dstRect,
-        state.remote_player.angle_deg,
+        remote_player.angle_deg,
         NULL,
         SDL_FLIP_NONE);
+
+
+    SDL_SetRenderDrawColor(state.renderer, 255, 0, 0, 255);
+
+    // Define the rectangle with the center at (cx, cy)
+    SDL_Rect rect;
+    rect.w = 10;
+    rect.h = 10;
+    rect.x = (int)local_player.position.x - rect.w / 2;
+    rect.y = (int)local_player.position.y - rect.h / 2;
+
+    // Draw the rectangle
+    SDL_RenderFillRect(state.renderer, &rect);
+    SDL_SetRenderDrawColor(state.renderer, 0, 0, 0, 0);
 
 
     // present
@@ -152,5 +165,4 @@ i32 game_render() {
 }
 
 i32 game_teardown() {
-    //TODO
 }
