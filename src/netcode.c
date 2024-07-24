@@ -101,6 +101,8 @@ i32 receive_packets(void* args) {
         }
 
         packet_queue_enqueue(&network_state.receive.rx_queue, packet);
+        usleep(1000);
+
     }
 
     close(socket_fd);
@@ -129,6 +131,7 @@ i32 send_packets(void* args) {
             }
             free(p);
         }
+        usleep(1000);
     }
 
     return ERR_OK;

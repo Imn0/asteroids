@@ -3,6 +3,7 @@
 // Window
 #define WINDOW_WIDTH 1280
 #define WINDOW_HEIGHT 1280
+#define GAME_FPS_LIMIT 60
 #define WINDOW_SCALING
 
 #define PLAYER_SIZE 64
