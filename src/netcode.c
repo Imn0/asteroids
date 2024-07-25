@@ -12,8 +12,15 @@
 #include "common.h"
 #include "netcode.h"
 
-i32 server_init() {
+i32 common_init() {
     atomic_store(&network_state.running, true);
+    queue_init(&network_state.receive.rx_queue, 64);
+    queue_init(&network_state.transmit.tx_queue, 64);
+    return ERR_OK;
+}
+
+i32 server_init() {
+    common_init();
     const int fd = socket(PF_INET, SOCK_STREAM, 0);
     struct sockaddr_in addr = { 0 };
     addr.sin_family = AF_INET;
@@ -46,7 +53,7 @@ i32 server_init() {
 }
 
 i32 client_init(i32 client_port) {
-    atomic_store(&network_state.running, true);
+    common_init();
     network_state.socket_fd = socket(PF_INET, SOCK_STREAM, 0);
     struct sockaddr_in addr = { 0 };
     addr.sin_family = AF_INET;
@@ -100,7 +107,7 @@ i32 receive_packets(void* args) {
             }
         }
 
-        packet_queue_enqueue(&network_state.receive.rx_queue, packet);
+        queue_enqueue(&network_state.receive.rx_queue, packet);
     }
 
     close(socket_fd);
@@ -112,7 +119,7 @@ i32 send_packets(void* args) {
 
     while (atomic_load(&network_state.running)) {
         Packet* p = NULL;
-        while (packet_queue_dequeue(&network_state.transmit.tx_queue, &p)) {
+        while (queue_dequeue(&network_state.transmit.tx_queue, (void*)&p)) {
             if (p == NULL) { continue; }
             ssize_t bytes_sent = send(socket_fd, p, sizeof(Packet), 0);
             if (bytes_sent < 0) {

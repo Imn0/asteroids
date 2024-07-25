@@ -4,6 +4,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <float.h>
 #include <sys/types.h>
 #include <threads.h>
 #include <SDL2/SDL.h>
@@ -26,21 +27,6 @@ typedef ssize_t isize;
 typedef struct _v2_f32 { f32 x; f32 y; } V2f32;
 typedef struct _v2_i32 { i32 x; i32 y; } V2i32;
 
-typedef struct {
-    // SDL 
-    SDL_Window* window;
-    SDL_Renderer* renderer;
-    SDL_Texture* render_target;
-    struct { SDL_Texture* arr[TEXTURES_CAPACITY]; i32 size; } textures;
-    const u8* keystate;
-
-    // game stuff
-    bool exit;
-}State;
-
-extern f32 delta_time;
-extern State state;
-
 #define PI 3.14159265359f
 #define TAU (2.0f * PI)
 #define PI_2 (PI / 2.0f)
@@ -53,9 +39,70 @@ extern State state;
 
 #define ASSERT(_e, ...) if (!(_e)) { fprintf(stderr, __VA_ARGS__); exit(1); }
 
-typedef enum ReturnType {
+
+/* FIFO QUEUE */
+
+typedef enum funct_ret_t funct_ret_t;
+typedef enum funct_ret_t{
     ERR_OK = 0,
+    ERR_GENRIC_BAD,
     QUEUE_OK,
     QUEUE_EMPTY,
-    ERR_NETWORK
-}ReturnType;
+    ERR_NETWORK,
+    ERR_EMPTY,
+    RET_ENTITY_REMOVE
+} func;
+
+
+typedef struct QueueNode {
+    void* data;
+    struct QueueNode* next;
+} QueueNode;
+
+typedef struct {
+    struct QueueNode* front;
+    struct QueueNode* rear;
+    mtx_t mutex;
+    cnd_t not_empty;
+    usize size;
+    usize max_size;
+} Queue;
+
+i32 queue_init(Queue queue[static 1], usize max_size);
+i32 queue_enqueue(Queue queue[static 1], void* data);
+i32 queue_dequeue(Queue queue[static 1], void** data);
+void queue_destroy(Queue queue[static 1]);
+/* FIFO QUEUE */
+
+/* LINKED LIST */
+
+typedef struct LinkedListNode {
+    void* data;
+    struct LinkedListNode* next;
+    struct LinkedListNode* prev;
+    void (*dtor)(void* data);
+} LinkedListNode;
+
+typedef struct {
+    struct LinkedListNode* head;
+    struct LinkedListNode* tail;
+    usize size;
+} LinkedList;
+
+typedef struct {
+    LinkedListNode* node;
+} LinkedListIter;
+
+i32 ll_iter_assign(LinkedListIter iter[static 1], LinkedList list[static 1]);
+bool ll_iter_end(LinkedListIter iter[static 1]);
+i32 ll_iter_next(LinkedListIter iter[static 1]);
+i32 ll_iter_prev(LinkedListIter iter[static 1]);
+void *ll_iter_peek(LinkedListIter iter[static 1]);
+void ll_iter_strip(LinkedListIter iter[static 1]);
+i32 ll_init(LinkedList list[static 1]);
+i32 ll_push_dtor(LinkedList list[static 1], void* data, void (*dtor)(void* data));
+i32 ll_push(LinkedList list[static 1], void* data);
+i32 ll_iter_remove_at(LinkedList list[static 1], LinkedListIter iter[static 1]);
+i32 ll_pop(LinkedList list[static 1], void** data);
+void ll_destroy(LinkedList list[static 1]);
+/* LINKED LIST */

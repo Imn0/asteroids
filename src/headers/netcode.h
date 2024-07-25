@@ -25,19 +25,7 @@ typedef struct {
     } payload;
 } Packet;
 
-typedef struct PacketQueueNode {
-    Packet* packet;
-    struct PacketQueueNode* next;
-} PacketQueueNode;
 
-typedef struct {
-    struct PacketQueueNode* front;
-    struct PacketQueueNode* rear;
-    mtx_t mutex;
-    cnd_t not_empty;
-    usize size;
-    usize max_size;
-} PacketQueue;
 
 typedef struct {
     // netcode
@@ -46,18 +34,18 @@ typedef struct {
     i32 socket_fd;
     struct {
         thrd_t receive_thrd;
-        PacketQueue rx_queue;
+        Queue rx_queue;
     }receive;
     struct {
         thrd_t transmit_thrd;
-        PacketQueue tx_queue;
+        Queue tx_queue;
     }transmit;
     thrd_t accept_thrd;
 } NetworkState;
 
 
 typedef struct {
-    PacketQueue* receive_packet_queue;
+    Queue* receive_packet_queue;
     bool* running;
 } ThreadArgs;
 
@@ -65,14 +53,8 @@ extern NetworkState network_state;
 
 i32 server_init();
 i32 client_init(i32 client_port);
-i32 accept_connections(void* arg);
 i32 receive_packets(void* arg);
 i32 send_packets(void* args);
 
-i32 packet_queue_init(PacketQueue* queue, usize max_size);
-i32 packet_queue_enqueue(PacketQueue* queue, Packet* packet);
-i32 packet_queue_dequeue(PacketQueue* queue, Packet** packet);
-void packet_queue_destroy(PacketQueue* queue);
-
 Packet* packet_from_player(Player* player);
-void update_player_from_queue(PacketQueue* queue, Player* player);
+void update_player_from_queue(Queue* queue, Player* player);

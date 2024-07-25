@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
+#include <unistd.h>
 
 #include "common.h"
 #include "game.h"
@@ -16,24 +17,43 @@ Player local_player;
 NetworkState network_state;
 f32 delta_time;
 
-i32 main(i32 argc, i8* argv[]) {
 
+// TODO: 
+// retun types
+// network sync events
+// rock 
+// player collison
+// animations
+
+i32 main(i32 argc, i8* argv[]) {
+    printf("%s", __FILE__);
     bool online_disable = true;
     network_state.is_server = true;
-    if (argc > 1 && !strcmp(argv[1], "client")) {
-        if (argc != 3) {
-            fprintf(stderr, "Usage: %s client <port>\n", argv[0]);
+
+
+    int opt;
+    i32 client_port = 0;
+    while ((opt = getopt(argc, argv, "sc:fp:")) != -1) {
+        switch (opt) {
+        case 's':
+            online_disable = false;
+            network_state.is_server = true;
+            break;
+        case 'c':
+        case 'p':
+            online_disable = false;
+            network_state.is_server = false;
+            client_port = atoi(optarg);
+            break;
+        case 'f':
+            setvbuf(stdout, NULL, _IONBF, 0);
+            break;
+        default:
+            fprintf(stderr, "Usage: %s [-s]\n", argv[0]);
             return -1;
         }
-        online_disable = false;
-        network_state.is_server = false;
-    } if (argc > 1 && !strcmp(argv[1], "multi")) {
-        online_disable = false;
     }
 
-
-    packet_queue_init(&network_state.receive.rx_queue, 64);
-    packet_queue_init(&network_state.transmit.tx_queue, 64);
 
     game_init();
     game_load_imgs();
@@ -43,8 +63,6 @@ i32 main(i32 argc, i8* argv[]) {
             server_init();
         }
         else {
-            i32 client_port = 0;
-            client_port = atoi(argv[2]);
             client_init(client_port);
         }
     }

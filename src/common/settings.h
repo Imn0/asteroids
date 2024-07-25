@@ -13,5 +13,9 @@
 #define NETWORK_BUFFER_SIZE 1024
 
 #define ROTATION_SPEED 270.0f
-#define ACCELERATION_SPEED 15.0f
-#define PLAYER_MAX_SPEED 9.0f
+#define ACCELERATION_SPEED 700.0f
+#define PLAYER_MAX_SPEED 500.0f
+#define SHOOT_COOLDOWN 0.2f // seconds 
+
+#define BULLET_INITIAL_TTL 1.3f // seconds
+#define BULLET_SPEED 550.0f 

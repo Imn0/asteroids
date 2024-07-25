@@ -1,6 +1,26 @@
 #include <math.h>
 #include <SDL2/SDL.h>
+
 #include "player.h"
+#include "game.h"
+
+void player_init(Player* player) {
+    player->position = (V2f32){ .x = WINDOW_WIDTH / 2, .y = WINDOW_HEIGHT / 2 };
+    player->angle_deg = 0.0f;
+    player->velocity = (V2f32){ .x = 0.0f, .y = 0.0f };
+    player->flags = (player_flags_t){ 0 };
+    player->shoot_timer = 0.0f;
+}
+
+void player_shoot(Player* player) {
+    if (player->shoot_timer <= 0.0f) {
+        player->shoot_timer = SHOOT_COOLDOWN;
+        Event* e = malloc(sizeof(Event));
+        e->type = EVENT_TYPE_SHOOT;
+        e->event.shoot = (EventShoot){ .position = player->position, .angle_deg = player->angle_deg , .initial_velocity = player->velocity };
+        queue_enqueue(&state.event_queue, e);
+    }
+}
 
 void player_process_input(Player* player) {
 
@@ -19,9 +39,15 @@ void player_process_input(Player* player) {
     if (state.keystate[SDL_SCANCODE_UP]) {
         player->flags.accelerate = 1;
     }
+    if (state.keystate[SDL_SCANCODE_SPACE]) {
+        player_shoot(player);
+    }
 }
 
 void player_update(Player* player) {
+    if (player->shoot_timer > 0.0f) {
+        player->shoot_timer -= delta_time;
+    }
 
     // rotation
     i32 rotation = 0;
@@ -50,8 +76,8 @@ void player_update(Player* player) {
     player->velocity.y *= factor;
 
 
-    player->position.x += player->velocity.x;
-    player->position.y += player->velocity.y;
+    player->position.x += player->velocity.x * delta_time;
+    player->position.y += player->velocity.y * delta_time;
 
 
     // player x,y is top left 
@@ -80,4 +106,17 @@ void player_update(Player* player) {
     else {
         player->velocity.y = 0.0f;
     }
+}
+
+void player_render(Player* player) {
+    SDL_Rect player_dst_rect = { (int)local_player.position.x - PLAYER_SIZE / 2, (int)local_player.position.y - PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE };
+    SDL_RenderCopyEx(
+        state.renderer,
+        state.textures.arr[0],
+        NULL,
+        &player_dst_rect,
+        local_player.angle_deg,
+        NULL,
+        SDL_FLIP_NONE);
+
 }

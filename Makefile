@@ -1,8 +1,9 @@
+# CC = clang
 CC = gcc
-CFLAGS = -std=c17 -O2 -Wall -Wextra -Wpedantic -Wstrict-aliasing
+CFLAGS = -std=c11 -O2 -Wall -Wextra -Wpedantic -Wstrict-aliasing
 CFLAGS = -g 
 # CFLAGS = -ggdb3 
-CFLAGS += -Wno-pointer-arith -Wno-unused-parameter -Wno-int-conversion
+# CFLAGS += -Wno-pointer-arith -Wno-unused-parameter -Wno-int-conversion
 # CFLAGS +=  -fbracket-depth=1024
 CFLAGS += -Isrc/headers
 CFLAGS += -Isrc/common
@@ -19,16 +20,18 @@ all: dirs lnk
 
 dirs:
 	mkdir -p $(OBJDIR) $(BIN)
+	@find src -type d | sed 's/src/obj/' | xargs mkdir -p
 
 run: all
-	cd $(BIN) && ./3d-demo
+	cd $(BIN) && ./asteroids
 
 lnk: $(OBJ)
-	$(CC) -o $(BIN)/3d-demo $^ $(LDFLAGS)
+	$(CC) -o $(BIN)/asteroids $^ $(LDFLAGS)
 
 $(OBJDIR)/%.o: src/%.c
+	@mkdir -p $(@D)
 	$(CC) -o $@ -c $< $(CFLAGS)
 
 clean:
 	rm -rf $(OBJDIR)
-	rm $(BIN)/3d-demo
+	rm -f $(BIN)/asteroids

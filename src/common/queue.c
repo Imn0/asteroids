@@ -2,24 +2,7 @@
 #include "netcode.h"
 #include "player.h"
 
-Packet* packet_from_player(Player* player) {
-    Packet* packet = malloc(sizeof(Packet));
-    packet->type = PACKET_PLAYER;
-    packet->time_stamp = -1;
-    packet->size = sizeof(PlayerPacket);
-    packet->payload.player = (PlayerPacket){
-        .angle = player->angle_deg,
-        .v_x = player->velocity.x,
-        .v_y = player->velocity.y,
-        .x = player->position.x,
-        .y = player->position.y,
-    };
-    memcpy(&packet->payload.player.flags,&player->flags, sizeof(player_flags_t));
-
-    return packet;
-}
-
-i32 packet_queue_init(PacketQueue* queue, usize max_size) {
+i32 queue_init(Queue queue[static 1], usize max_size) {
     queue->front = queue->rear = NULL;
     queue->size = 0;
     queue->max_size = max_size;
@@ -36,12 +19,12 @@ i32 packet_queue_init(PacketQueue* queue, usize max_size) {
     return true;
 }
 
-size_t queue_remove_front(PacketQueue* queue, size_t count) {
+size_t queue_remove_front(Queue queue[static 1], size_t count) {
     mtx_lock(&queue->mutex);
 
     size_t removed = 0;
     while (removed < count && queue->front != NULL) {
-        PacketQueueNode* temp = queue->front;
+        QueueNode* temp = queue->front;
         queue->front = queue->front->next;
         free(temp);
         removed++;
@@ -58,11 +41,11 @@ size_t queue_remove_front(PacketQueue* queue, size_t count) {
     return removed;
 }
 
-i32 packet_queue_enqueue(PacketQueue* queue, Packet* packet) {
-    PacketQueueNode* new_node = malloc(sizeof(PacketQueueNode));
+i32 queue_enqueue(Queue queue[static 1], void* data) {
+    QueueNode* new_node = malloc(sizeof(QueueNode));
     if (!new_node) return false;
 
-    new_node->packet = packet;
+    new_node->data = data;
     new_node->next = NULL;
     mtx_lock(&queue->mutex);
 
@@ -89,7 +72,7 @@ i32 packet_queue_enqueue(PacketQueue* queue, Packet* packet) {
     return true;
 }
 
-i32 packet_queue_dequeue(PacketQueue* queue, Packet** packet) {
+i32 queue_dequeue(Queue queue[static 1], void** data) {
     mtx_lock(&queue->mutex);
     
     if (queue->front == NULL) {
@@ -97,8 +80,8 @@ i32 packet_queue_dequeue(PacketQueue* queue, Packet** packet) {
         return false;  // Queue is empty
     }
     
-    PacketQueueNode* temp = queue->front;
-    *packet = temp->packet;
+    QueueNode* temp = queue->front;
+    *data = temp->data;
     
     queue->front = queue->front->next;
     
@@ -115,11 +98,11 @@ i32 packet_queue_dequeue(PacketQueue* queue, Packet** packet) {
 }
 
 
-void packet_queue_destroy(PacketQueue* queue) {
+void queue_destroy(Queue queue[static 1]) {
     mtx_lock(&queue->mutex);
 
     while (queue->front != NULL) {
-        PacketQueueNode* temp = queue->front;
+        QueueNode* temp = queue->front;
         queue->front = queue->front->next;
         free(temp);
     }
@@ -127,24 +110,4 @@ void packet_queue_destroy(PacketQueue* queue) {
     mtx_unlock(&queue->mutex);
     mtx_destroy(&queue->mutex);
     cnd_destroy(&queue->not_empty);
-}
-
-void update_player_from_queue(PacketQueue* queue, Player* player) {
-    // TODO for now in queu are only player packets 
-    Packet* p = NULL;
-    while (packet_queue_dequeue(queue, &p)) {
-
-    }
-
-    if (p == NULL) { return; }
-
-    PlayerPacket packet = p->payload.player;
-    player->angle_deg = packet.angle;
-    player->position.x = packet.x;
-    player->position.y = packet.y;
-
-    player->velocity.x = packet.v_x;
-    player->velocity.y = packet.v_y;
-    printf("freeing %ud\n", p);
-    free(p);
 }
