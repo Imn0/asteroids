@@ -2,10 +2,10 @@
 
 #include "common.h"
 
-typedef struct player_flags_t{
-    i32 rotate_left : 1;
-    i32 rotate_right : 1;
-    i32 accelerate : 1;
+typedef struct player_flags_t {
+    u32 rotate_left : 1;
+    u32 rotate_right : 1;
+    u32 accelerate : 1;
 } player_flags_t;
 
 typedef struct {

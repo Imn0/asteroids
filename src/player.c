@@ -3,6 +3,7 @@
 
 #include "player.h"
 #include "game.h"
+#include "netcode.h"
 
 void player_init(Player* player) {
     player->position = (V2f32){ .x = WINDOW_WIDTH / 2, .y = WINDOW_HEIGHT / 2 };
@@ -15,16 +16,26 @@ void player_init(Player* player) {
 void player_shoot(Player* player) {
     if (player->shoot_timer <= 0.0f) {
         player->shoot_timer = SHOOT_COOLDOWN;
+
+        // create local event
         Event* e = malloc(sizeof(Event));
         e->type = EVENT_TYPE_SHOOT;
         e->event.shoot = (EventShoot){ .position = player->position, .angle_deg = player->angle_deg , .initial_velocity = player->velocity };
         queue_enqueue(&state.event_queue, e);
+
+        if (!network_state.online_disable) {
+            Packet* p = packet_from_event(e);
+            if (e == NULL) {
+                return;
+            }
+            queue_enqueue(&network_state.transmit.tx_queue, (void*)p);
+        }
     }
 }
 
 void player_process_input(Player* player) {
 
-    memset(&player->flags, 0, sizeof(player->flags));
+    player->flags = (player_flags_t){ 0 };
     // rotate left
     if (state.keystate[SDL_SCANCODE_LEFT]) {
         player->flags.rotate_left = 1;
@@ -63,11 +74,11 @@ void player_update(Player* player) {
 
 
     if (player->flags.accelerate) {
-        player->velocity.x += sinf(DEG_TO_RAD(player->angle_deg)) * ACCELERATION_SPEED * delta_time;
-        player->velocity.y -= cosf(DEG_TO_RAD(player->angle_deg)) * ACCELERATION_SPEED * delta_time;
+        player->velocity.x += sinf(deg_to_rad(player->angle_deg)) * ACCELERATION_SPEED * delta_time;
+        player->velocity.y -= cosf(deg_to_rad(player->angle_deg)) * ACCELERATION_SPEED * delta_time;
     }
 
-    f32 speed = LENGTH(player->velocity);
+    f32 speed = length(player->velocity);
     f32 factor = 1.0f;
     if (speed > PLAYER_MAX_SPEED) {
         factor = PLAYER_MAX_SPEED / speed;
@@ -109,13 +120,13 @@ void player_update(Player* player) {
 }
 
 void player_render(Player* player) {
-    SDL_Rect player_dst_rect = { (int)local_player.position.x - PLAYER_SIZE / 2, (int)local_player.position.y - PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE };
+    SDL_Rect player_dst_rect = { (int)player->position.x - PLAYER_SIZE / 2, (int)player->position.y - PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE };
     SDL_RenderCopyEx(
         state.renderer,
         state.textures.arr[0],
         NULL,
         &player_dst_rect,
-        local_player.angle_deg,
+        player->angle_deg,
         NULL,
         SDL_FLIP_NONE);
 

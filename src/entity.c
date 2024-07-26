@@ -6,8 +6,8 @@ func entity_create_bullet(V2f32 position, V2f32 initial_velocity, f32 angle_deg,
 
     EntityBullet e;
     e.position = position;
-    e.velocity.x = sinf(DEG_TO_RAD(angle_deg)) * BULLET_SPEED + initial_velocity.x;
-    e.velocity.y = -cosf(DEG_TO_RAD(angle_deg)) * BULLET_SPEED + initial_velocity.y;
+    e.velocity.x = sinf(deg_to_rad(angle_deg)) * BULLET_SPEED + initial_velocity.x;
+    e.velocity.y = -cosf(deg_to_rad(angle_deg)) * BULLET_SPEED + initial_velocity.y;
     e.ttl = BULLET_INITIAL_TTL;
     entity->type = ENTITY_BULLET;
     entity->data.bullet = e;

@@ -79,10 +79,12 @@ i32 game_process() {
     while (queue_dequeue(&state.event_queue, (void*)&e)) {
         switch (e->type) {
         case EVENT_TYPE_SHOOT:
+        {
             Entity* bullet = malloc(sizeof(Entity));
             entity_create_bullet(e->event.shoot.position, e->event.shoot.initial_velocity, e->event.shoot.angle_deg, bullet);
             ll_push(&state.entities, bullet);
             break;
+        }
         }
         free(e);
     }
@@ -106,19 +108,14 @@ i32 game_update_remote() {
         &network_state.transmit.tx_queue,
         packet_from_player(&local_player));
 
-    Packet* p = NULL;
-    while (queue_dequeue(&network_state.receive.rx_queue, (void*)&p)) { ; }
-
-    if (p == NULL) { return ERR_OK; /* no updates */ }
-    PlayerPacket packet = p->payload.player;
-    remote_player.angle_deg = packet.angle;
-    remote_player.position.x = packet.x;
-    remote_player.position.y = packet.y;
-    remote_player.velocity.x = packet.v_x;
-    remote_player.velocity.y = packet.v_y;
-    memcpy(&remote_player.flags, &packet.flags, sizeof(player_flags_t));
-    free(p);
-
+    mtx_lock(&network_state.remote_player_state.mutex);
+    remote_player.angle_deg = network_state.remote_player_state.player_state.angle;
+    remote_player.position.x = network_state.remote_player_state.player_state.x;
+    remote_player.position.y = network_state.remote_player_state.player_state.y;
+    remote_player.velocity.x = network_state.remote_player_state.player_state.v_x;
+    remote_player.velocity.y = network_state.remote_player_state.player_state.v_y;
+    remote_player.flags = network_state.remote_player_state.player_state.flags;
+    mtx_unlock(&network_state.remote_player_state.mutex);
 
     return ERR_OK;
 }

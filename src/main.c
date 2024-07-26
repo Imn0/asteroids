@@ -2,6 +2,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <unistd.h>
+#include <getopt.h>
 
 #include "common.h"
 #include "game.h"
@@ -19,15 +20,14 @@ f32 delta_time;
 
 
 // TODO: 
+// network - host packet types
 // retun types
-// network sync events
 // rock 
 // player collison
 // animations
 
-i32 main(i32 argc, i8* argv[]) {
-    printf("%s", __FILE__);
-    bool online_disable = true;
+i32 main(i32 argc, char* argv[]) {
+    network_state.online_disable = true;
     network_state.is_server = true;
 
 
@@ -36,12 +36,12 @@ i32 main(i32 argc, i8* argv[]) {
     while ((opt = getopt(argc, argv, "sc:fp:")) != -1) {
         switch (opt) {
         case 's':
-            online_disable = false;
+            network_state.online_disable = false;
             network_state.is_server = true;
             break;
         case 'c':
         case 'p':
-            online_disable = false;
+            network_state.online_disable = false;
             network_state.is_server = false;
             client_port = atoi(optarg);
             break;
@@ -57,7 +57,7 @@ i32 main(i32 argc, i8* argv[]) {
 
     game_init();
     game_load_imgs();
-    if (!online_disable) {
+    if (!network_state.online_disable) {
 
         if (network_state.is_server == true) {
             server_init();
@@ -81,7 +81,7 @@ i32 main(i32 argc, i8* argv[]) {
 
         game_get_input();
         if (state.exit) { continue; }
-        if (!online_disable) {
+        if (!network_state.online_disable) {
             if (remote_update_accumulator >= remote_update_interval) {
                 game_update_remote();
                 remote_update_accumulator -= remote_update_interval;

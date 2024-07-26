@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <time.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -12,15 +13,63 @@
 #include "common.h"
 #include "netcode.h"
 
-i32 common_init() {
+
+i32 network_consumer() {
+    Packet* p = NULL;
+    while (network_state.running) {
+        while (queue_dequeue(&network_state.receive.rx_queue, (void*)&p)) {
+            if (p == NULL) { break; /* no updates */ }
+            switch (p->type) {
+            case PACKET_PLAYER:
+            {
+                PlayerPacket packet = p->payload.player_packet;
+                mtx_lock(&network_state.remote_player_state.mutex);
+                network_state.remote_player_state.player_state.angle = packet.angle;
+                network_state.remote_player_state.player_state.x = packet.x;
+                network_state.remote_player_state.player_state.y = packet.y;
+                network_state.remote_player_state.player_state.v_x = packet.v_x;
+                network_state.remote_player_state.player_state.v_y = packet.v_y;
+                remote_player.flags = packet.flags;
+                mtx_unlock(&network_state.remote_player_state.mutex);
+                break;
+            }
+            case PACKET_EVENT:
+            {
+                Event* e = malloc(sizeof(Event));
+                *e = p->payload.event_packet.event;
+                queue_enqueue(&state.event_queue, e);
+                break;
+            }
+            }
+            free(p);
+        }
+        nanosleep(&(struct timespec) { .tv_nsec = 1000, .tv_sec = 0 }, NULL);
+    }
+    return ERR_OK;
+}
+
+void network_consumer_init() {
+    thrd_create(
+        &network_state.consumer_thrd,
+        network_consumer,
+        NULL);
+}
+
+func common_init() {
+    network_consumer_init();
     atomic_store(&network_state.running, true);
+
+    if (mtx_init(&network_state.remote_player_state.mutex, mtx_plain) != thrd_success) {
+        return ERR_MTX_INIT;
+    }
+
     queue_init(&network_state.receive.rx_queue, 64);
     queue_init(&network_state.transmit.tx_queue, 64);
     return ERR_OK;
 }
 
 i32 server_init() {
-    common_init();
+    ASSERT(common_init() == ERR_OK, "failed to init mtx");
     const int fd = socket(PF_INET, SOCK_STREAM, 0);
     struct sockaddr_in addr = { 0 };
     addr.sin_family = AF_INET;
@@ -136,6 +185,7 @@ i32 send_packets(void* args) {
             }
             free(p);
         }
+        nanosleep(&(struct timespec) { .tv_nsec = 1000, .tv_sec = 0 }, NULL);
     }
 
     return ERR_OK;

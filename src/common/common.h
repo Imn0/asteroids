@@ -32,26 +32,27 @@ typedef struct _v2_i32 { i32 x; i32 y; } V2i32;
 #define PI_2 (PI / 2.0f)
 #define PI_4 (PI / 4.0f)
 
-#define DEG_TO_RAD(_d) ((_d) * (PI / 180.0f))
-#define DOT(_v0, _v1) ({ __typeof__(_v0) __v0 = (_v0), __v1 = (_v1); (__v0.x * __v1.x) + (__v0.y * __v1.y); })
-#define LENGTH(_vl) ({ __typeof__(_vl) __vl = (_vl); sqrtf(DOT(__vl, __vl)); })
-#define RAD_TO_DEG(_d) ((_d) * (180.0f / PI))
+static inline float deg_to_rad(f32 d) { return d * (PI / 180.0f); }
+static inline float dot(V2f32 v0, V2f32 v1) { return (v0.x * v1.x) + (v0.y * v1.y); }
+static inline float length(V2f32 vl) { return sqrtf(dot(vl, vl)); }
+static inline float rad_to_deg(f32 d) { return d * (180.0f / PI); }
 
 #define ASSERT(_e, ...) if (!(_e)) { fprintf(stderr, __VA_ARGS__); exit(1); }
 
 
 /* FIFO QUEUE */
 
-typedef enum funct_ret_t funct_ret_t;
-typedef enum funct_ret_t{
+typedef enum funct_ret_t {
     ERR_OK = 0,
     ERR_GENRIC_BAD,
     QUEUE_OK,
     QUEUE_EMPTY,
     ERR_NETWORK,
     ERR_EMPTY,
-    RET_ENTITY_REMOVE
+    RET_ENTITY_REMOVE,
+    ERR_MTX_INIT,
 } func;
+typedef enum funct_ret_t funct_ret_t;
 
 
 typedef struct QueueNode {
@@ -97,7 +98,7 @@ i32 ll_iter_assign(LinkedListIter iter[static 1], LinkedList list[static 1]);
 bool ll_iter_end(LinkedListIter iter[static 1]);
 i32 ll_iter_next(LinkedListIter iter[static 1]);
 i32 ll_iter_prev(LinkedListIter iter[static 1]);
-void *ll_iter_peek(LinkedListIter iter[static 1]);
+void* ll_iter_peek(LinkedListIter iter[static 1]);
 void ll_iter_strip(LinkedListIter iter[static 1]);
 i32 ll_init(LinkedList list[static 1]);
 i32 ll_push_dtor(LinkedList list[static 1], void* data, void (*dtor)(void* data));
