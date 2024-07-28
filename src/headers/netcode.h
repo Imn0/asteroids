@@ -66,8 +66,8 @@ typedef struct {
 
 extern NetworkState network_state;
 
-i32 server_init();
-i32 client_init(i32 client_port);
+func server_init();
+func client_init(i32 client_port);
 i32 receive_packets(void* arg);
 i32 send_packets(void* args);
 

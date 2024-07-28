@@ -17,7 +17,7 @@
 i32 network_consumer() {
     Packet* p = NULL;
     while (network_state.running) {
-        while (queue_dequeue(&network_state.receive.rx_queue, (void*)&p)) {
+        while (queue_dequeue(&network_state.receive.rx_queue, (void*)&p) == 0) {
             if (p == NULL) { break; /* no updates */ }
             switch (p->type) {
             case PACKET_PLAYER:
@@ -29,7 +29,7 @@ i32 network_consumer() {
                 network_state.remote_player_state.player_state.y = packet.y;
                 network_state.remote_player_state.player_state.v_x = packet.v_x;
                 network_state.remote_player_state.player_state.v_y = packet.v_y;
-                remote_player.flags = packet.flags;
+                network_state.remote_player_state.player_state.flags = packet.flags;
                 mtx_unlock(&network_state.remote_player_state.mutex);
                 break;
             }
@@ -45,7 +45,7 @@ i32 network_consumer() {
         }
         nanosleep(&(struct timespec) { .tv_nsec = 1000, .tv_sec = 0 }, NULL);
     }
-    return ERR_OK;
+    return OK;
 }
 
 void network_consumer_init() {
@@ -65,25 +65,23 @@ func common_init() {
 
     queue_init(&network_state.receive.rx_queue, 64);
     queue_init(&network_state.transmit.tx_queue, 64);
-    return ERR_OK;
+    return OK;
 }
 
-i32 server_init() {
-    ASSERT(common_init() == ERR_OK, "failed to init mtx");
-    const int fd = socket(PF_INET, SOCK_STREAM, 0);
+func server_init() {
+    ASSERT(common_init() == OK, "failed to init mtx");
+    const i32 fd = socket(PF_INET, SOCK_STREAM, 0);
     struct sockaddr_in addr = { 0 };
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
     if (bind(fd, (struct sockaddr*)&addr, sizeof(addr))) {
-        perror("bind error:");
-        return -1;
+        return ERR_BIND_SOC;
     }
     socklen_t addr_len = sizeof(addr);
     getsockname(fd, (struct sockaddr*)&addr, &addr_len);
     printf("Server is on port %d\n", (int)ntohs(addr.sin_port));
     if (listen(fd, 1)) {
-        perror("listen error:");
-        return -1;
+        return ERR_LISTEN_SOC;
     }
     struct sockaddr_storage caddr;
     socklen_t caddr_len = sizeof(caddr);
@@ -98,10 +96,10 @@ i32 server_init() {
         send_packets,
         &network_state.socket_fd);
 
-    return ERR_OK;
+    return OK;
 }
 
-i32 client_init(i32 client_port) {
+func client_init(i32 client_port) {
     common_init();
     network_state.socket_fd = socket(PF_INET, SOCK_STREAM, 0);
     struct sockaddr_in addr = { 0 };
@@ -109,8 +107,7 @@ i32 client_init(i32 client_port) {
     addr.sin_port = htons((short)client_port);
     inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
     if (connect(network_state.socket_fd, (struct sockaddr*)&addr, sizeof(addr))) {
-        perror("connect error:");
-        return -1;
+        return ERR_CONNECT;
     }
 
     thrd_create(
@@ -122,7 +119,7 @@ i32 client_init(i32 client_port) {
         send_packets,
         &network_state.socket_fd);
 
-    return ERR_OK;
+    return OK;
 }
 
 i32 receive_packets(void* args) {
@@ -155,20 +152,20 @@ i32 receive_packets(void* args) {
                 break;
             }
         }
-
         queue_enqueue(&network_state.receive.rx_queue, packet);
     }
 
     close(socket_fd);
-    return ERR_OK;
+    return OK;
 }
 
 i32 send_packets(void* args) {
     i32 socket_fd = *(i32*)args;
 
     while (atomic_load(&network_state.running)) {
+
         Packet* p = NULL;
-        while (queue_dequeue(&network_state.transmit.tx_queue, (void*)&p)) {
+        while (queue_dequeue(&network_state.transmit.tx_queue, (void*)&p) == OK) {
             if (p == NULL) { continue; }
             ssize_t bytes_sent = send(socket_fd, p, sizeof(Packet), 0);
             if (bytes_sent < 0) {
@@ -188,5 +185,5 @@ i32 send_packets(void* args) {
         nanosleep(&(struct timespec) { .tv_nsec = 1000, .tv_sec = 0 }, NULL);
     }
 
-    return ERR_OK;
+    return OK;
 }

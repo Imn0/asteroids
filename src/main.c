@@ -21,10 +21,10 @@ f32 delta_time;
 
 // TODO: 
 // network - host packet types
-// retun types
-// rock 
-// player collison
-// animations
+// player collison death
+// points
+// rock spawning
+// menu
 
 i32 main(i32 argc, char* argv[]) {
     network_state.online_disable = true;
@@ -60,10 +60,10 @@ i32 main(i32 argc, char* argv[]) {
     if (!network_state.online_disable) {
 
         if (network_state.is_server == true) {
-            server_init();
+            ASSERT(server_init() == OK, " ");
         }
         else {
-            client_init(client_port);
+            ASSERT(client_init(client_port) == OK, " ");
         }
     }
 
@@ -71,6 +71,7 @@ i32 main(i32 argc, char* argv[]) {
     f32 remote_update_accumulator = 0.0f;
     const f32 remote_update_interval = 1.0f / REMOTE_UPDATE_FREQUENCY;
 
+    generate_rocks(10);
 
     while (!state.exit) {
         current_time = SDL_GetTicks();

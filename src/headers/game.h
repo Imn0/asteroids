@@ -15,10 +15,13 @@ typedef struct {
     bool exit;
     Queue event_queue;
     LinkedList entities;
+    LinkedList animations;
+    f32 new_rock_timer;
 }State;
 
 typedef enum {
     EVENT_TYPE_SHOOT,
+    EVENT_TYPE_NEW_ROCK,
 } EventType;
 
 typedef struct {
@@ -27,9 +30,18 @@ typedef struct {
 } EventShoot;
 
 typedef struct {
+    V2f32 position, initial_velocity;
+    i32 num_vertices;
+    f32 jaggedness;
+    f32 base_radius;
+    u8 seed;
+} EventRock;
+
+typedef struct {
     EventType type;
     union {
         EventShoot shoot;
+        EventRock rock;
     } event;
 } Event;
 
@@ -38,14 +50,15 @@ extern State state;
 
 /* init code */
 
-i32 game_init();
-i32 game_load_imgs();
+void game_init();
+void game_load_imgs();
 
 /* main loop code */
 
-i32 game_get_input();
-i32 game_process();
-i32 game_update_remote();
-i32 game_render();
+void game_get_input();
+void game_process();
+void game_update_remote();
+void game_render();
 
-i32 game_teardown();
+void generate_rocks(i32 rock_num);
+void game_teardown();

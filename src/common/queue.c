@@ -2,27 +2,27 @@
 #include "netcode.h"
 #include "player.h"
 
-i32 queue_init(Queue queue[static 1], usize max_size) {
+func queue_init(Queue queue[static 1], usize max_size) {
     queue->front = queue->rear = NULL;
     queue->size = 0;
     queue->max_size = max_size;
 
     if (mtx_init(&queue->mutex, mtx_plain) != thrd_success) {
-        return false;
+        return ERR_MTX_INIT;
     }
 
     if (cnd_init(&queue->not_empty) != thrd_success) {
         mtx_destroy(&queue->mutex);
-        return false;
+        return ERR_MTX_INIT;
     }
 
-    return true;
+    return OK;
 }
 
-size_t queue_remove_front(Queue queue[static 1], size_t count) {
+usize queue_remove_front(Queue queue[static 1], usize count) {
     mtx_lock(&queue->mutex);
 
-    size_t removed = 0;
+    usize removed = 0;
     while (removed < count && queue->front != NULL) {
         QueueNode* temp = queue->front;
         queue->front = queue->front->next;
@@ -41,9 +41,9 @@ size_t queue_remove_front(Queue queue[static 1], size_t count) {
     return removed;
 }
 
-i32 queue_enqueue(Queue queue[static 1], void* data) {
+func queue_enqueue(Queue queue[static 1], void* data) {
     QueueNode* new_node = malloc(sizeof(QueueNode));
-    if (!new_node) return false;
+    if (!new_node) return ERR_GENRIC_BAD;
 
     new_node->data = data;
     new_node->next = NULL;
@@ -69,15 +69,15 @@ i32 queue_enqueue(Queue queue[static 1], void* data) {
 
     cnd_signal(&queue->not_empty);
     mtx_unlock(&queue->mutex);
-    return true;
+    return OK;
 }
 
-i32 queue_dequeue(Queue queue[static 1], void** data) {
+func queue_dequeue(Queue queue[static 1], void** data) {
     mtx_lock(&queue->mutex);
     
     if (queue->front == NULL) {
         mtx_unlock(&queue->mutex);
-        return false;  // Queue is empty
+        return CONTAINER_EMPTY;  // Queue is empty
     }
     
     QueueNode* temp = queue->front;
@@ -94,7 +94,7 @@ i32 queue_dequeue(Queue queue[static 1], void** data) {
     mtx_unlock(&queue->mutex);
     
     free(temp);
-    return true;
+    return OK;
 }
 
 

@@ -1,9 +1,9 @@
-#include <math.h>
 #include <SDL2/SDL.h>
 
 #include "player.h"
 #include "game.h"
 #include "netcode.h"
+#include "physics.h"
 
 void player_init(Player* player) {
     player->position = (V2f32){ .x = WINDOW_WIDTH / 2, .y = WINDOW_HEIGHT / 2 };
@@ -11,11 +11,26 @@ void player_init(Player* player) {
     player->velocity = (V2f32){ .x = 0.0f, .y = 0.0f };
     player->flags = (player_flags_t){ 0 };
     player->shoot_timer = 0.0f;
+    player->bloop_timer = PLAYER_BOOP_OFF_TIME;
+}
+
+void player_boop(Player* player) {
+    player->bloop_timer -= delta_time;
+    if (player->bloop_timer < 0.0f) {
+        if (player->ex_flags.boop) {
+            player->ex_flags.boop = 0;
+            player->bloop_timer = PLAYER_BOOP_OFF_TIME;
+        }
+        else {
+            player->bloop_timer = PLAYER_BOOP_ON_TIME;
+            player->ex_flags.boop = 1;
+        }
+    }
 }
 
 void player_shoot(Player* player) {
     if (player->shoot_timer <= 0.0f) {
-        player->shoot_timer = SHOOT_COOLDOWN;
+        player->shoot_timer = PLAYER_SHOOT_COOLDOWN;
 
         // create local event
         Event* e = malloc(sizeof(Event));
@@ -35,7 +50,7 @@ void player_shoot(Player* player) {
 
 void player_process_input(Player* player) {
 
-    player->flags = (player_flags_t){ 0 };
+    player->flags = (player_flags_t){ .invisible = player->flags.invisible };
     // rotate left
     if (state.keystate[SDL_SCANCODE_LEFT]) {
         player->flags.rotate_left = 1;
@@ -68,14 +83,20 @@ void player_update(Player* player) {
     if (player->flags.rotate_right) {
         rotation += 1;
     }
-    player->angle_deg += (ROTATION_SPEED * rotation) * delta_time;
+    player->angle_deg += (PLAYER_ROTATION_SPEED * rotation) * delta_time;
     if (player->angle_deg < 0.0f) { player->angle_deg += 360.0f; }
     if (player->angle_deg >= 360.0f) { player->angle_deg -= 360.0f; }
 
 
+
+    // acceleration / movement
     if (player->flags.accelerate) {
-        player->velocity.x += sinf(deg_to_rad(player->angle_deg)) * ACCELERATION_SPEED * delta_time;
-        player->velocity.y -= cosf(deg_to_rad(player->angle_deg)) * ACCELERATION_SPEED * delta_time;
+        player_boop(player);
+        player->velocity.x += sinf(deg_to_rad(player->angle_deg)) * PLAYER_ACCELERATION_SPEED * delta_time;
+        player->velocity.y -= cosf(deg_to_rad(player->angle_deg)) * PLAYER_ACCELERATION_SPEED * delta_time;
+    }
+    else {
+        player->ex_flags.boop = 0;
     }
 
     f32 speed = length(player->velocity);
@@ -91,43 +112,90 @@ void player_update(Player* player) {
     player->position.y += player->velocity.y * delta_time;
 
 
-    // player x,y is top left 
-    if (player->position.x + PLAYER_SIZE / 2 < 0) player->position.x = WINDOW_WIDTH - PLAYER_SIZE / 2;
-    if (player->position.x + PLAYER_SIZE / 2 > WINDOW_WIDTH) player->position.x = 0 - PLAYER_SIZE / 2;
-    if (player->position.y + PLAYER_SIZE / 2 < 0) player->position.y = WINDOW_HEIGHT - PLAYER_SIZE / 2;
-    if (player->position.y + PLAYER_SIZE / 2 > WINDOW_HEIGHT) player->position.y = 0 - PLAYER_SIZE / 2;
-
-    i32 i = 0;
-    if (fabs(player->velocity.x) > 0.1f) {
-        if (player->velocity.x < 0) { i = 1; }
-        if (player->velocity.x > 0) { i = -1; }
-        player->velocity.x += ((i * ACCELERATION_SPEED) / 4) * delta_time;
+    player->phantom_player.phantom_enabled = false;
+    if (player->position.x < PLAYER_SIZE) {
+        player->phantom_player.position.x = WINDOW_WIDTH + player->position.x;
+        player->phantom_player.position.y = player->position.y;
+        player->phantom_player.phantom_enabled = true;
     }
-    else {
-        player->velocity.x = 0.0f;
+    else if (player->position.x > WINDOW_WIDTH - PLAYER_SIZE) {
+        player->phantom_player.position.x = player->position.x - WINDOW_WIDTH;
+        player->phantom_player.position.y = player->position.y;
+        player->phantom_player.phantom_enabled = true;
     }
 
-    i = 0;
-    if (fabs(player->velocity.y) > 0.1f) {
+    if (player->position.y < PLAYER_SIZE) {
+        if (!player->phantom_player.phantom_enabled) {
+            player->phantom_player.position.y = player->position.x;
+        }
+        player->phantom_player.position.y = WINDOW_HEIGHT + player->position.y;
+        player->phantom_player.phantom_enabled = true;
+    }
+    else if (player->position.y > WINDOW_HEIGHT - PLAYER_SIZE) {
+        if (!player->phantom_player.phantom_enabled) {
+            player->phantom_player.position.y = player->position.x;
+        }
+        player->phantom_player.position.y = player->position.y - WINDOW_HEIGHT;
+        player->phantom_player.phantom_enabled = true;
+    }
 
-        if (player->velocity.y < 0) { i = 1; }
-        if (player->velocity.y > 0) { i = -1; }
-        player->velocity.y += ((i * ACCELERATION_SPEED) / 4) * delta_time;
-    }
-    else {
-        player->velocity.y = 0.0f;
-    }
+
+
+
+    if (player->position.x < 0) player->position.x = WINDOW_WIDTH;
+    if (player->position.x > WINDOW_WIDTH) player->position.x = 0;
+    if (player->position.y < 0) player->position.y = WINDOW_HEIGHT;
+    if (player->position.y > WINDOW_HEIGHT) player->position.y = 0;
+
+
+    // deaceleration 
+    decelerate_v2f32(&player->velocity, PLAYER_ACCELERATION_SPEED / 10);
+
+    queue_enqueue(
+        &network_state.transmit.tx_queue,
+        packet_from_player(&local_player));
 }
 
 void player_render(Player* player) {
-    SDL_Rect player_dst_rect = { (int)player->position.x - PLAYER_SIZE / 2, (int)player->position.y - PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE };
-    SDL_RenderCopyEx(
-        state.renderer,
-        state.textures.arr[0],
-        NULL,
-        &player_dst_rect,
-        player->angle_deg,
-        NULL,
-        SDL_FLIP_NONE);
+    if (player->flags.invisible) { return; }
+    SDL_SetRenderDrawColor(state.renderer, 255, 255, 255, 255);
+
+    for (i32 i = 0; i < PLAYER_SEGMENTS_SIZE; i++) {
+        V2f32 start_point = rotate_point(player_segments[i][0], (V2f32) { 0, 0 }, deg_to_rad(player->angle_deg));
+        V2f32 end_point = rotate_point(player_segments[i][1], (V2f32) { 0, 0 }, deg_to_rad(player->angle_deg));
+
+        SDL_RenderDrawLine(state.renderer,
+                           (i32)start_point.x + player->position.x, (i32)start_point.y + player->position.y,
+                           (i32)end_point.x + player->position.x, (i32)end_point.y + player->position.y);
+    }
+
+
+
+    if (player->phantom_player.phantom_enabled) {
+
+
+        for (i32 i = 0; i < PLAYER_SEGMENTS_SIZE; i++) {
+            V2f32 start_point = rotate_point(player_segments[i][0], (V2f32) { 0, 0 }, deg_to_rad(player->angle_deg));
+            V2f32 end_point = rotate_point(player_segments[i][1], (V2f32) { 0, 0 }, deg_to_rad(player->angle_deg));
+
+            SDL_RenderDrawLine(state.renderer,
+                               (i32)start_point.x + player->phantom_player.position.x, (i32)start_point.y + player->phantom_player.position.y,
+                               (i32)end_point.x + player->phantom_player.position.x, (i32)end_point.y + player->phantom_player.position.y);
+        }
+
+    }
+
+    if (player->ex_flags.boop) {
+        for (i32 i = 0; i < 2; i++) {
+            V2f32 start_point = rotate_point(player_boop_segments[i][0], (V2f32) { 0, 0 }, deg_to_rad(player->angle_deg));
+            V2f32 end_point = rotate_point(player_boop_segments[i][1], (V2f32) { 0, 0 }, deg_to_rad(player->angle_deg));
+
+            SDL_RenderDrawLine(state.renderer,
+                               (i32)start_point.x + player->position.x, (i32)start_point.y + player->position.y,
+                               (i32)end_point.x + player->position.x, (i32)end_point.y + player->position.y);
+        }
+    }
+    SDL_SetRenderDrawColor(state.renderer, 0, 0, 0, 0);
+
 
 }
