@@ -71,7 +71,14 @@ i32 main(i32 argc, char* argv[]) {
     f32 remote_update_accumulator = 0.0f;
     const f32 remote_update_interval = 1.0f / REMOTE_UPDATE_FREQUENCY;
 
-    generate_rocks(10);
+    if (network_state.is_server) {
+
+        generate_rocks(10);
+    }
+
+    SDL_version a;
+    SDL_GetVersion(&a);
+    printf("%d %d %d\n", a.major, a.minor, a.patch);
 
     while (!state.exit) {
 #ifdef DEBUG_ENABLED

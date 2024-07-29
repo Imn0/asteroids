@@ -63,10 +63,47 @@ void draw_info(SDL_Surface* surface, int y_offset) {
     // }
 }
 
-void draw_mouse_colisions() {
-    int mouseX, mouseY;
-    SDL_GetMouseState(&mouseX, &mouseY);
+void get_mouse_logical_position(V2f32* mouse){
+    i32 actual_x, actual_y;
+    SDL_GetMouseState(&actual_x, &actual_y);
 
+    int current_window_w, current_window_h;
+        SDL_GetWindowSize(state.window, &current_window_w, &current_window_h);
+
+        float logical_aspect_ratio = (float)WINDOW_WIDTH / WINDOW_HEIGHT;
+        float current_aspect_ratio = (float)current_window_w / current_window_h;
+
+        int viewport_x, viewport_y, viewport_w, viewport_h;
+
+        if (current_aspect_ratio > logical_aspect_ratio) {
+            viewport_h = current_window_h;
+            viewport_w = (int)(current_window_h * logical_aspect_ratio);
+            viewport_x = (current_window_w - viewport_w) / 2;
+            viewport_y = 0;
+        } else {
+            viewport_w = current_window_w;
+            viewport_h = (int)(current_window_w / logical_aspect_ratio);
+            viewport_x = 0;
+            viewport_y = (current_window_h - viewport_h) / 2;
+        }
+
+        if (actual_x >= viewport_x && actual_x < viewport_x + viewport_w &&
+            actual_y >= viewport_y && actual_y < viewport_y + viewport_h) {
+            mouse->x = (actual_x - viewport_x) * WINDOW_WIDTH / viewport_w;
+            mouse->y = (actual_y - viewport_y) * WINDOW_HEIGHT / viewport_h;
+        } else {
+            mouse->x = -1;
+            mouse->y = -1;
+        }
+
+
+}
+
+void draw_mouse_colisions() {
+
+
+    V2f32 mouse_pos; 
+    get_mouse_logical_position(&mouse_pos);
     LinkedListIter rock_iter;
     Entity* entity_rock = NULL;
 
@@ -82,14 +119,14 @@ void draw_mouse_colisions() {
         // V2f32 mouse_point =
         //     rotate_point((V2f32){.x = mouseX, .y = mouseY}, (V2f32){0},
         //                  -deg_to_rad(entity_rock->data.rock.angle_deg));
-        if (entity_check_collision_point(entity_rock, (V2f32) { .x = mouseX, .y = mouseY })) {
+        if (entity_check_collision_point(entity_rock, mouse_pos)) {
             SDL_SetRenderDrawColor(state.renderer, 255, 0, 0, 255);
             break;
         }
         ll_iter_next(&rock_iter);
     }
 
-    SDL_Rect cursorRect = { mouseX - 5, mouseY - 5, 4, 4 };
+    SDL_Rect cursorRect = { mouse_pos.x - 5, mouse_pos.y - 5, 4, 4 };
     SDL_RenderFillRect(state.renderer, &cursorRect);
 }
 

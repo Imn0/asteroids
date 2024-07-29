@@ -81,15 +81,10 @@ void game_init() {
 
 void game_load_assets() {
 
-
-
-    char* exe_path =  SDL_GetBasePath();
+    char* exe_path = SDL_GetBasePath();
     char font_path[1024];
     snprintf(font_path, sizeof(font_path), "%s/../assets/fonts/Montserrat-Regular.ttf", exe_path);
 
-
-
-    printf("%s\n", font_path);
     TTF_Init();
     state.font = TTF_OpenFont(font_path, 24);
     state.small_font = TTF_OpenFont(font_path, 12);
@@ -262,6 +257,10 @@ void game_render() {
     // setup
     SDL_RenderClear(state.renderer);
 
+    SDL_Rect logicalRect = { 0, 0, .w = WINDOW_WIDTH, .h = WINDOW_HEIGHT };
+    SDL_SetRenderDrawColor(state.renderer, 0x21, 0x21, 0x21, 255);
+    SDL_RenderFillRect(state.renderer, &logicalRect);
+    SDL_SetRenderDrawColor(state.renderer, 0, 0, 0, 255); 
 #ifdef DEBUG_ENABLED
     debug_render();
 #endif
