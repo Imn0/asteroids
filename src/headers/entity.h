@@ -1,9 +1,6 @@
 #include "common.h"
 
-typedef enum {
-    ENTITY_BULLET,
-    ENTITY_ROCK
-} EntityType;
+typedef enum { ENTITY_BULLET, ENTITY_ROCK } EntityType;
 
 typedef struct {
     V2f32 position, velocity;
@@ -15,6 +12,7 @@ typedef struct {
 typedef struct {
     EntityCommon common;
     f32 ttl;
+    V2f32 last_position;
 } EntityBullet;
 
 struct entity_create_rock_args {
@@ -46,9 +44,12 @@ typedef struct {
     } data;
 } Entity;
 
-Entity* entity_create_rock(struct entity_create_rock_args args);
-Entity* entity_create_bullet(V2f32 position, V2f32 initial_velocity, f32 angle_deg);
+Entity *entity_create_rock(struct entity_create_rock_args args);
+Entity *entity_create_bullet(V2f32 position, V2f32 initial_velocity,
+                             f32 angle_deg);
 void entity_update(Entity entity[static 1]);
 void entity_render(Entity entity[static 1]);
 
 bool entity_check_collision_point(Entity entity1[static 1], V2f32 point);
+bool entity_check_collision_line(Entity entity[static 1], V2f32 point1,
+                                 V2f32 point2);

@@ -1,14 +1,19 @@
 #pragma once
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 
 #include "common.h"
 
 typedef struct {
-    // SDL 
+    // SDL
     SDL_Window* window;
     SDL_Renderer* renderer;
-    SDL_Texture* render_target;
-    struct { SDL_Texture* arr[TEXTURES_CAPACITY]; i32 size; } textures;
+    struct {
+        SDL_Texture* arr[TEXTURES_CAPACITY];
+        i32 size;
+    } textures;
+    TTF_Font* font;
+    TTF_Font* small_font;
     const u8* keystate;
 
     // game stuff
@@ -17,7 +22,7 @@ typedef struct {
     LinkedList entities;
     LinkedList animations;
     f32 new_rock_timer;
-}State;
+} State;
 
 typedef enum {
     EVENT_TYPE_SHOOT,
@@ -51,7 +56,7 @@ extern State state;
 /* init code */
 
 void game_init();
-void game_load_imgs();
+void game_load_assets();
 
 /* main loop code */
 

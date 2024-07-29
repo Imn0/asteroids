@@ -1,7 +1,7 @@
 #!/bin/bash
 
 make
-cd bin
+cd build/bin
 
 echo "Starting asteroids multi..."
 exec 3< <(./asteroids -fs 2>&1)

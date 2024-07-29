@@ -1,18 +1,13 @@
 #pragma once
 
-#include <threads.h>
 #include <stdatomic.h>
+#include <threads.h>
 
 #include "common.h"
-#include "player.h"
 #include "game.h"
+#include "player.h"
 
-
-
-typedef enum PacketType {
-    PACKET_PLAYER,
-    PACKET_EVENT
-} PacketType;
+typedef enum PacketType { PACKET_PLAYER, PACKET_EVENT } PacketType;
 
 typedef struct {
     f32 x, y, angle, v_x, v_y;
@@ -37,7 +32,7 @@ typedef struct {
 typedef struct RemotePlayerState {
     mtx_t mutex;
     PlayerPacket player_state;
-}RemotePlayerState;
+} RemotePlayerState;
 
 typedef struct {
     // netcode
@@ -48,16 +43,14 @@ typedef struct {
     struct {
         thrd_t receive_thrd;
         Queue rx_queue;
-    }receive;
+    } receive;
     struct {
         thrd_t transmit_thrd;
         Queue tx_queue;
-    }transmit;
+    } transmit;
     thrd_t consumer_thrd;
     RemotePlayerState remote_player_state;
 } NetworkState;
-
-
 
 typedef struct {
     Queue* receive_packet_queue;

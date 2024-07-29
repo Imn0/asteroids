@@ -43,7 +43,8 @@ usize queue_remove_front(Queue queue[static 1], usize count) {
 
 func queue_enqueue(Queue queue[static 1], void* data) {
     QueueNode* new_node = malloc(sizeof(QueueNode));
-    if (!new_node) return ERR_GENRIC_BAD;
+    if (!new_node)
+        return ERR_GENRIC_BAD;
 
     new_node->data = data;
     new_node->next = NULL;
@@ -51,7 +52,7 @@ func queue_enqueue(Queue queue[static 1], void* data) {
 
     // Check if the queue has reached its maximum size
     if (queue->size >= queue->max_size) {
-        size_t to_remove = queue->max_size/4;
+        size_t to_remove = queue->max_size / 4;
         mtx_unlock(&queue->mutex);
         queue_remove_front(queue, to_remove);
         mtx_lock(&queue->mutex);
@@ -74,29 +75,28 @@ func queue_enqueue(Queue queue[static 1], void* data) {
 
 func queue_dequeue(Queue queue[static 1], void** data) {
     mtx_lock(&queue->mutex);
-    
+
     if (queue->front == NULL) {
         mtx_unlock(&queue->mutex);
-        return CONTAINER_EMPTY;  // Queue is empty
+        return CONTAINER_EMPTY; // Queue is empty
     }
-    
+
     QueueNode* temp = queue->front;
     *data = temp->data;
-    
+
     queue->front = queue->front->next;
-    
+
     if (queue->front == NULL) {
         queue->rear = NULL;
     }
-    
+
     queue->size--;
-    
+
     mtx_unlock(&queue->mutex);
-    
+
     free(temp);
     return OK;
 }
-
 
 void queue_destroy(Queue queue[static 1]) {
     mtx_lock(&queue->mutex);

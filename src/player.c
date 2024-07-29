@@ -1,9 +1,9 @@
 #include <SDL2/SDL.h>
 
-#include "player.h"
 #include "game.h"
 #include "netcode.h"
 #include "physics.h"
+#include "player.h"
 
 void player_init(Player* player) {
     player->position = (V2f32){ .x = WINDOW_WIDTH / 2, .y = WINDOW_HEIGHT / 2 };
@@ -35,7 +35,9 @@ void player_shoot(Player* player) {
         // create local event
         Event* e = malloc(sizeof(Event));
         e->type = EVENT_TYPE_SHOOT;
-        e->event.shoot = (EventShoot){ .position = player->position, .angle_deg = player->angle_deg , .initial_velocity = player->velocity };
+        e->event.shoot = (EventShoot){ .position = player->position,
+                                      .angle_deg = player->angle_deg,
+                                      .initial_velocity = player->velocity };
         queue_enqueue(&state.event_queue, e);
 
         if (!network_state.online_disable) {
@@ -84,16 +86,20 @@ void player_update(Player* player) {
         rotation += 1;
     }
     player->angle_deg += (PLAYER_ROTATION_SPEED * rotation) * delta_time;
-    if (player->angle_deg < 0.0f) { player->angle_deg += 360.0f; }
-    if (player->angle_deg >= 360.0f) { player->angle_deg -= 360.0f; }
-
-
+    if (player->angle_deg < 0.0f) {
+        player->angle_deg += 360.0f;
+    }
+    if (player->angle_deg >= 360.0f) {
+        player->angle_deg -= 360.0f;
+    }
 
     // acceleration / movement
     if (player->flags.accelerate) {
         player_boop(player);
-        player->velocity.x += sinf(deg_to_rad(player->angle_deg)) * PLAYER_ACCELERATION_SPEED * delta_time;
-        player->velocity.y -= cosf(deg_to_rad(player->angle_deg)) * PLAYER_ACCELERATION_SPEED * delta_time;
+        player->velocity.x += sinf(deg_to_rad(player->angle_deg)) *
+            PLAYER_ACCELERATION_SPEED * delta_time;
+        player->velocity.y -= cosf(deg_to_rad(player->angle_deg)) *
+            PLAYER_ACCELERATION_SPEED * delta_time;
     }
     else {
         player->ex_flags.boop = 0;
@@ -107,10 +113,8 @@ void player_update(Player* player) {
     player->velocity.x *= factor;
     player->velocity.y *= factor;
 
-
     player->position.x += player->velocity.x * delta_time;
     player->position.y += player->velocity.y * delta_time;
-
 
     player->phantom_player.phantom_enabled = false;
     if (player->position.x < PLAYER_SIZE) {
@@ -139,63 +143,71 @@ void player_update(Player* player) {
         player->phantom_player.phantom_enabled = true;
     }
 
-
-
-
     if (player->position.x < 0) player->position.x = WINDOW_WIDTH;
     if (player->position.x > WINDOW_WIDTH) player->position.x = 0;
     if (player->position.y < 0) player->position.y = WINDOW_HEIGHT;
     if (player->position.y > WINDOW_HEIGHT) player->position.y = 0;
 
-
-    // deaceleration 
+    // deaceleration
     decelerate_v2f32(&player->velocity, PLAYER_ACCELERATION_SPEED / 10);
 
-    queue_enqueue(
-        &network_state.transmit.tx_queue,
-        packet_from_player(&local_player));
+    queue_enqueue(&network_state.transmit.tx_queue,
+                  packet_from_player(&local_player));
 }
 
 void player_render(Player* player) {
-    if (player->flags.invisible) { return; }
+    if (player->flags.invisible) {
+        return;
+    }
     SDL_SetRenderDrawColor(state.renderer, 255, 255, 255, 255);
 
     for (i32 i = 0; i < PLAYER_SEGMENTS_SIZE; i++) {
-        V2f32 start_point = rotate_point(player_segments[i][0], (V2f32) { 0, 0 }, deg_to_rad(player->angle_deg));
-        V2f32 end_point = rotate_point(player_segments[i][1], (V2f32) { 0, 0 }, deg_to_rad(player->angle_deg));
+        V2f32 start_point = rotate_point(player_segments[i][0], (V2f32) { 0, 0 },
+                                         deg_to_rad(player->angle_deg));
+        V2f32 end_point = rotate_point(player_segments[i][1], (V2f32) { 0, 0 },
+                                       deg_to_rad(player->angle_deg));
 
-        SDL_RenderDrawLine(state.renderer,
-                           (i32)start_point.x + player->position.x, (i32)start_point.y + player->position.y,
-                           (i32)end_point.x + player->position.x, (i32)end_point.y + player->position.y);
+        gfx_render_thick_line(
+            state.renderer, (i32)start_point.x + player->position.x,
+            (i32)start_point.y + player->position.y,
+            (i32)end_point.x + player->position.x,
+            (i32)end_point.y + player->position.y, LINE_THICKNESS);
     }
-
-
 
     if (player->phantom_player.phantom_enabled) {
 
-
         for (i32 i = 0; i < PLAYER_SEGMENTS_SIZE; i++) {
-            V2f32 start_point = rotate_point(player_segments[i][0], (V2f32) { 0, 0 }, deg_to_rad(player->angle_deg));
-            V2f32 end_point = rotate_point(player_segments[i][1], (V2f32) { 0, 0 }, deg_to_rad(player->angle_deg));
+            V2f32 start_point =
+                rotate_point(player_segments[i][0], (V2f32) { 0, 0 },
+                             deg_to_rad(player->angle_deg));
+            V2f32 end_point = rotate_point(player_segments[i][1], (V2f32) { 0, 0 },
+                                           deg_to_rad(player->angle_deg));
 
-            SDL_RenderDrawLine(state.renderer,
-                               (i32)start_point.x + player->phantom_player.position.x, (i32)start_point.y + player->phantom_player.position.y,
-                               (i32)end_point.x + player->phantom_player.position.x, (i32)end_point.y + player->phantom_player.position.y);
+            gfx_render_thick_line(
+                state.renderer,
+                (i32)start_point.x + player->phantom_player.position.x,
+                (i32)start_point.y + player->phantom_player.position.y,
+                (i32)end_point.x + player->phantom_player.position.x,
+                (i32)end_point.y + player->phantom_player.position.y,
+                LINE_THICKNESS);
         }
-
     }
 
     if (player->ex_flags.boop) {
         for (i32 i = 0; i < 2; i++) {
-            V2f32 start_point = rotate_point(player_boop_segments[i][0], (V2f32) { 0, 0 }, deg_to_rad(player->angle_deg));
-            V2f32 end_point = rotate_point(player_boop_segments[i][1], (V2f32) { 0, 0 }, deg_to_rad(player->angle_deg));
+            V2f32 start_point =
+                rotate_point(player_boop_segments[i][0], (V2f32) { 0, 0 },
+                             deg_to_rad(player->angle_deg));
+            V2f32 end_point =
+                rotate_point(player_boop_segments[i][1], (V2f32) { 0, 0 },
+                             deg_to_rad(player->angle_deg));
 
-            SDL_RenderDrawLine(state.renderer,
-                               (i32)start_point.x + player->position.x, (i32)start_point.y + player->position.y,
-                               (i32)end_point.x + player->position.x, (i32)end_point.y + player->position.y);
+            gfx_render_thick_line(
+                state.renderer, (i32)start_point.x + player->position.x,
+                (i32)start_point.y + player->position.y,
+                (i32)end_point.x + player->position.x,
+                (i32)end_point.y + player->position.y, LINE_THICKNESS);
         }
     }
     SDL_SetRenderDrawColor(state.renderer, 0, 0, 0, 0);
-
-
 }

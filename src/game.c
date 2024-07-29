@@ -1,14 +1,20 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
+#include <SDL2/SDL_ttf.h>
 #include <time.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "animation.h"
-#include "game.h"
 #include "common.h"
-#include "settings.h"
+#include "debug.h"
+#include "entity.h"
+#include "game.h"
 #include "netcode.h"
 #include "player.h"
-#include "entity.h"
+#include "settings.h"
 
 void generate_rocks(i32 rock_num) {
     srand(time(NULL));
@@ -22,17 +28,15 @@ void generate_rocks(i32 rock_num) {
         EventRock* rock = &e->event.rock;
         *rock = (EventRock){
             .base_radius = rand_float(25.0f, 130.0f),
-                .jaggedness = rand_float(0.7f, 0.95f),
-                .num_vertices = rand_i32(8, ASTEROID_MAX_POINTS - 1),
-                .position = (V2f32){.x = rand_float(0.0f, WINDOW_WIDTH), .y = rand_float(0.0f, WINDOW_HEIGHT) },
-                .initial_velocity = (V2f32){.x = rand_float(5.0f, 45.0f), .y = rand_float(5.0f, 45.0f) },
-                .seed = seed
-        };
+            .jaggedness = rand_float(0.7f, 0.95f),
+            .num_vertices = rand_i32(8, ASTEROID_MAX_POINTS - 1),
+            .position = (V2f32){.x = rand_float(0.0f, WINDOW_WIDTH),
+                                .y = rand_float(0.0f, WINDOW_HEIGHT)},
+            .initial_velocity = (V2f32){.x = rand_float(5.0f, 45.0f),
+                                        .y = rand_float(5.0f, 45.0f)},
+            .seed = seed };
 
-        queue_enqueue(
-            &state.event_queue,
-            e
-        );
+        queue_enqueue(&state.event_queue, e);
 
         if (!network_state.online_disable) {
             Packet* packet = packet_from_event(e);
@@ -42,34 +46,30 @@ void generate_rocks(i32 rock_num) {
 }
 
 void game_init() {
-    ASSERT(!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS), "Failed to init SDL %s\n", SDL_GetError());
+    ASSERT(!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS),
+           "Failed to init SDL %s\n", SDL_GetError());
 
     char window_name[256];
-    snprintf(window_name, 256, "Asteroids %s", network_state.is_server ? "Server" : "Client");
+    snprintf(window_name, 256, "Asteroids %s",
+             network_state.is_server ? "Server" : "Client");
 
     state.window = SDL_CreateWindow(
-        window_name,
-        SDL_WINDOWPOS_CENTERED,
-        SDL_WINDOWPOS_CENTERED,
-        WINDOW_WIDTH,
-        WINDOW_HEIGHT,
-        SDL_WINDOW_VULKAN | SDL_WINDOW_ALLOW_HIGHDPI);
+        window_name, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        WINDOW_WIDTH, WINDOW_HEIGHT,
+        SDL_WINDOW_VULKAN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE);
     ASSERT(state.window, "Failed to init window %s\n", SDL_GetError());
 
-    state.renderer = SDL_CreateRenderer(
-        state.window,
-        -1,
-        SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    state.renderer = SDL_CreateRenderer(state.window, -1,
+                                        SDL_RENDERER_ACCELERATED
+#ifdef VSYNC_ENABLED
+                                        | SDL_RENDERER_PRESENTVSYNC
+#endif
+    );
     ASSERT(state.renderer, "Failed to init renderer %s\n", SDL_GetError());
 
-    state.render_target = SDL_CreateTexture(
-        state.renderer,
-        SDL_PIXELFORMAT_RGBA8888,
-        SDL_TEXTUREACCESS_TARGET,
-        WINDOW_WIDTH,
-        WINDOW_HEIGHT);
-    ASSERT(state.render_target, "Failed to create render target %s\n", SDL_GetError());
-
+    SDL_RenderSetLogicalSize(state.renderer, WINDOW_WIDTH, WINDOW_HEIGHT);
+    SDL_SetRenderDrawBlendMode(state.renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
     player_init(&local_player);
     player_init(&remote_player);
 
@@ -77,18 +77,24 @@ void game_init() {
     ll_init(&state.animations);
     queue_init(&state.event_queue, 64);
     state.new_rock_timer = 3.0f;
-
-
-
-
 }
 
-void game_load_imgs() {
-    state.textures.size = 0;
-    SDL_Surface* surface = IMG_Load("../assets/imgs/arrow.png");
-    state.textures.arr[state.textures.size++] = SDL_CreateTextureFromSurface(state.renderer, surface);
-    SDL_FreeSurface(surface);
+void game_load_assets() {
 
+
+
+    char* exe_path =  SDL_GetBasePath();
+    char font_path[1024];
+    snprintf(font_path, sizeof(font_path), "%s/../assets/fonts/Montserrat-Regular.ttf", exe_path);
+
+
+
+    printf("%s\n", font_path);
+    TTF_Init();
+    state.font = TTF_OpenFont(font_path, 24);
+    state.small_font = TTF_OpenFont(font_path, 12);
+    ASSERT((state.font != NULL), "failed to load font");
+    state.textures.size = 0;
 }
 
 void game_get_input() {
@@ -98,21 +104,37 @@ void game_get_input() {
         case SDL_QUIT:
             state.exit = true;
             break;
+        case SDL_KEYDOWN:
+            switch (ev.key.keysym.sym) {
+#ifdef DEBUG_ENABLED
+            case SDLK_F1:
+            {
+                Animation* a = create_player_death_animation(
+                    local_player.position, local_player.velocity,
+                    local_player.angle_deg);
+                local_player.flags.invisible = 1;
+                ll_push_back(&state.animations, a);
+                break;
+            }
+            case SDLK_F2:
+                local_player.flags.invisible = 0;
+                break;
+            case SDLK_F3:
+                debug_state.show_info = !debug_state.show_info;
+                break;
+            case SDLK_F4:
+                debug_state.stop_logic = !debug_state.stop_logic;
+                break;
+#endif
+            default:
+                break;
+            }
+
+            break;
         }
     }
     state.keystate = SDL_GetKeyboardState(NULL);
     player_process_input(&local_player);
-
-
-// ! DEBUG
-    if (state.keystate[SDL_SCANCODE_F1] && local_player.flags.invisible == 0) {
-        Animation* a = create_player_death_animation(local_player.position, local_player.velocity, local_player.angle_deg);
-        local_player.flags.invisible = 1;
-        ll_push_back(&state.animations, a);
-    }
-    if (state.keystate[SDL_SCANCODE_F2]) {
-        local_player.flags.invisible = 0;
-    }
 }
 
 void game_process() {
@@ -135,8 +157,7 @@ void game_process() {
         case EVENT_TYPE_SHOOT:
         {
             Entity* bullet = entity_create_bullet(
-                e->event.shoot.position,
-                e->event.shoot.initial_velocity,
+                e->event.shoot.position, e->event.shoot.initial_velocity,
                 e->event.shoot.angle_deg);
             ret = ll_push_back(&state.entities, bullet);
             break;
@@ -178,10 +199,15 @@ void game_process() {
                 break;
             }
 
-            bool colision = entity_check_collision_point(ll_iter_peek(&rock_iter), entity_bullet->data.bullet.common.position);
+            bool colision = entity_check_collision_line(
+                ll_iter_peek(&rock_iter),
+                entity_bullet->data.bullet.common.position,
+                entity_bullet->data.bullet.last_position);
 
             if (colision) {
-                Animation* a = create_sprinkle_animation(entity_bullet->data.common.position, rand_i32(10, 20), rand_i32(0, 255));
+                Animation* a = create_sprinkle_animation(
+                    entity_bullet->data.common.position, rand_i32(10, 20),
+                    rand_i32(0, 255));
                 ll_push_back(&state.animations, a);
                 ll_iter_remove_at(&state.entities, &bullet_iter);
                 ll_iter_remove_at(&state.entities, &rock_iter);
@@ -189,11 +215,9 @@ void game_process() {
             }
 
             ll_iter_next(&rock_iter);
-
         }
         ll_iter_next(&bullet_iter);
     }
-
 
     // physics
     LinkedListIter iter;
@@ -216,28 +240,31 @@ void game_process() {
         }
         ll_iter_next(&iter);
     }
-
 }
 
 void game_update_remote() {
 
-
     mtx_lock(&network_state.remote_player_state.mutex);
-    remote_player.angle_deg = network_state.remote_player_state.player_state.angle;
+    remote_player.angle_deg =
+        network_state.remote_player_state.player_state.angle;
     remote_player.position.x = network_state.remote_player_state.player_state.x;
     remote_player.position.y = network_state.remote_player_state.player_state.y;
-    remote_player.velocity.x = network_state.remote_player_state.player_state.v_x;
-    remote_player.velocity.y = network_state.remote_player_state.player_state.v_y;
+    remote_player.velocity.x =
+        network_state.remote_player_state.player_state.v_x;
+    remote_player.velocity.y =
+        network_state.remote_player_state.player_state.v_y;
     remote_player.flags = network_state.remote_player_state.player_state.flags;
     mtx_unlock(&network_state.remote_player_state.mutex);
-
 }
 
 void game_render() {
 
     // setup
-    SDL_SetRenderTarget(state.renderer, state.render_target);
     SDL_RenderClear(state.renderer);
+
+#ifdef DEBUG_ENABLED
+    debug_render();
+#endif
 
     // redner player
     player_render(&local_player);
@@ -255,7 +282,6 @@ void game_render() {
     // Draw the rectangle
     SDL_RenderFillRect(state.renderer, &rect);
     SDL_SetRenderDrawColor(state.renderer, 0, 0, 0, 0);
-
     LinkedListIter iter;
     ll_iter_assign(&iter, &state.entities);
     while (!ll_iter_end(&iter)) {
@@ -269,40 +295,12 @@ void game_render() {
         ll_iter_next(&iter);
     }
 
-
     // present
-    SDL_SetRenderTarget(state.renderer, NULL);
-    SDL_RenderClear(state.renderer);
-    int window_width, window_height;
-    SDL_GetWindowSize(state.window, &window_width, &window_height);
-
-#ifdef WINDOW_SCALING
-    // Calculate scaling factor and destination rectangle
-    f32 aspect_ratio = (f32)WINDOW_WIDTH / WINDOW_HEIGHT;
-    int scaled_width = window_width;
-    int scaled_height = window_width / aspect_ratio;
-    if (scaled_height > window_height) {
-        scaled_height = window_height;
-        scaled_width = window_height * aspect_ratio;
-    }
-    SDL_Rect screen_rect = {
-        .x = (window_width - scaled_width) / 2,
-        .y = (window_height - scaled_height) / 2,
-        .w = scaled_width,
-        .h = scaled_height
-    };
-
-    // Render the texture to the screen
-    SDL_RenderCopy(state.renderer, state.render_target, NULL, &screen_rect);
-#else
-    SDL_RenderCopy(state.renderer, state.render_target, NULL, NULL);
-#endif
     SDL_RenderPresent(state.renderer);
 }
 
 void game_teardown() {
     queue_destroy(&state.event_queue);
-    SDL_DestroyTexture(state.render_target);
     SDL_DestroyRenderer(state.renderer);
     SDL_DestroyWindow(state.window);
     SDL_Quit();

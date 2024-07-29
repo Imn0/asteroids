@@ -40,7 +40,9 @@ void update_player_from_queue(Queue* queue, Player* player) {
     while (queue_dequeue(queue, (void*)&p)) {
     }
 
-    if (p == NULL) { return; }
+    if (p == NULL) {
+        return;
+    }
 
     PlayerPacket packet = p->payload.player_packet;
     player->angle_deg = packet.angle;

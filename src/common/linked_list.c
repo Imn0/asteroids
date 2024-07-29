@@ -10,8 +10,9 @@ func ll_iter_assign(LinkedListIter iter[static 1], LinkedList list[static 1]) {
     return OK;
 }
 
-
-func ll_iter_assign_direction(LinkedListIter iter[static 1], LinkedList list[static 1], IterDirection direction) {
+func ll_iter_assign_direction(LinkedListIter iter[static 1],
+                              LinkedList list[static 1],
+                              IterDirection direction) {
     if (list->size == 0) {
         iter->node = NULL;
         return CONTAINER_EMPTY;
@@ -26,10 +27,7 @@ func ll_iter_assign_direction(LinkedListIter iter[static 1], LinkedList list[sta
     return OK;
 }
 
-
-bool ll_iter_end(LinkedListIter iter[static 1]) {
-    return iter->node == NULL;
-}
+bool ll_iter_end(LinkedListIter iter[static 1]) { return iter->node == NULL; }
 
 func ll_iter_next(LinkedListIter iter[static 1]) {
     if (iter->node == NULL) {
@@ -57,9 +55,7 @@ func ll_iter_prev(LinkedListIter iter[static 1]) {
     return OK;
 }
 
-void ll_iter_strip(LinkedListIter iter[static 1]) {
-    iter->node = NULL;
-}
+void ll_iter_strip(LinkedListIter iter[static 1]) { iter->node = NULL; }
 
 void* ll_iter_peek(LinkedListIter iter[static 1]) {
     if (iter->node == NULL) {
@@ -74,7 +70,8 @@ void ll_init(LinkedList list[static 1]) {
     list->size = 0;
 }
 
-func ll_push_back_dtor(LinkedList list[static 1], void* data, void (*dtor)(void* data)) {
+func ll_push_back_dtor(LinkedList list[static 1], void* data,
+                       void (*dtor)(void* data)) {
     LinkedListNode* node = malloc(sizeof(LinkedListNode));
     if (node == NULL) {
         return ERR_GENRIC_BAD;
@@ -98,7 +95,8 @@ func ll_push_back(LinkedList list[static 1], void* data) {
     return ll_push_back_dtor(list, data, &free);
 }
 
-func ll_push_front_dtor(LinkedList list[static 1], void* data, void (*dtor)(void* data)) {
+func ll_push_front_dtor(LinkedList list[static 1], void* data,
+                        void (*dtor)(void* data)) {
     LinkedListNode* node = malloc(sizeof(LinkedListNode));
     if (node == NULL) {
         return ERR_GENRIC_BAD;
@@ -123,7 +121,8 @@ func ll_push_front(LinkedList list[static 1], void* data) {
     return ll_push_front_dtor(list, data, &free);
 }
 
-func ll_iter_remove_at(LinkedList list[static 1], LinkedListIter iter[static 1]) {
+func ll_iter_remove_at(LinkedList list[static 1],
+                       LinkedListIter iter[static 1]) {
     if (iter->node == NULL) {
         return CONTAINER_EMPTY;
     }

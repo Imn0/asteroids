@@ -4,23 +4,26 @@
 #define WINDOW_WIDTH 1280
 #define WINDOW_HEIGHT 1280
 #define WINDOW_SCALING
+#define LINE_THICKNESS 3
+// #define VSYNC_ENABLED
+#define DEBUG_ENABLED 
+
 
 #define PLAYER_SIZE 64
 #define TEXTURES_CAPACITY 16
 
-#define REMOTE_UPDATE_FREQUENCY 24.0f // read and write to queue hz 
-#define MAX_REMOTE_UPDATE_TIME 5.0f // max 5ms 
+#define REMOTE_UPDATE_FREQUENCY 24.0f // read and write to queue hz
+#define MAX_REMOTE_UPDATE_TIME 5.0f   // max 5ms
 #define NETWORK_BUFFER_SIZE 1024
 
 #define PLAYER_ROTATION_SPEED 270.0f
 #define PLAYER_ACCELERATION_SPEED 700.0f
 #define PLAYER_MAX_SPEED 550.0f
-#define PLAYER_SHOOT_COOLDOWN 0.2f // seconds 
+#define PLAYER_SHOOT_COOLDOWN 0.2f // seconds
 
 #define BULLET_INITIAL_TTL 1.7f // seconds
-#define BULLET_SPEED 650.0f 
+#define BULLET_SPEED 650.0f
 
 #define ASTEROID_MAX_POINTS 15
 #define ASTEROID_MAX_ROTATION_SPEED 20.0f
 #define ASTEROID_MIN_ROTATION_SPEED 3.0f
-
