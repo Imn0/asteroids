@@ -7,6 +7,7 @@
 #define LINE_THICKNESS 3
 // #define VSYNC_ENABLED
 #define DEBUG_ENABLED 
+#define BACKGROUND_COLOR 0x15, 0x15, 0x15
 
 
 #define PLAYER_SIZE 64

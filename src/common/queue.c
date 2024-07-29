@@ -2,15 +2,13 @@
 #include "netcode.h"
 #include "player.h"
 
-func queue_init(Queue queue[static 1], usize max_size) {
+func queue_init(Queue *queue, usize max_size) {
     queue->front = queue->rear = NULL;
     queue->size = 0;
     queue->max_size = max_size;
-
     if (mtx_init(&queue->mutex, mtx_plain) != thrd_success) {
         return ERR_MTX_INIT;
     }
-
     if (cnd_init(&queue->not_empty) != thrd_success) {
         mtx_destroy(&queue->mutex);
         return ERR_MTX_INIT;
@@ -19,7 +17,8 @@ func queue_init(Queue queue[static 1], usize max_size) {
     return OK;
 }
 
-usize queue_remove_front(Queue queue[static 1], usize count) {
+usize queue_remove_front(Queue *queue, usize count) {
+
     mtx_lock(&queue->mutex);
 
     usize removed = 0;
@@ -41,7 +40,7 @@ usize queue_remove_front(Queue queue[static 1], usize count) {
     return removed;
 }
 
-func queue_enqueue(Queue queue[static 1], void* data) {
+func queue_enqueue(Queue *queue, void* data) {
     QueueNode* new_node = malloc(sizeof(QueueNode));
     if (!new_node)
         return ERR_GENRIC_BAD;
@@ -52,10 +51,13 @@ func queue_enqueue(Queue queue[static 1], void* data) {
 
     // Check if the queue has reached its maximum size
     if (queue->size >= queue->max_size) {
-        size_t to_remove = queue->max_size / 4;
+        usize  to_remove = queue->max_size / 4;
         mtx_unlock(&queue->mutex);
+
         queue_remove_front(queue, to_remove);
+
         mtx_lock(&queue->mutex);
+
     }
 
     if (queue->rear == NULL) {
@@ -67,17 +69,17 @@ func queue_enqueue(Queue queue[static 1], void* data) {
     }
 
     queue->size++;
-
     cnd_signal(&queue->not_empty);
     mtx_unlock(&queue->mutex);
     return OK;
 }
 
-func queue_dequeue(Queue queue[static 1], void** data) {
-    mtx_lock(&queue->mutex);
+func queue_dequeue(Queue *queue, void** data) {
 
+    mtx_lock(&queue->mutex);
     if (queue->front == NULL) {
         mtx_unlock(&queue->mutex);
+        *data = NULL; 
         return CONTAINER_EMPTY; // Queue is empty
     }
 
@@ -98,16 +100,15 @@ func queue_dequeue(Queue queue[static 1], void** data) {
     return OK;
 }
 
-void queue_destroy(Queue queue[static 1]) {
+void queue_destroy(Queue *queue) {
     mtx_lock(&queue->mutex);
-
     while (queue->front != NULL) {
         QueueNode* temp = queue->front;
         queue->front = queue->front->next;
         free(temp);
     }
-
     mtx_unlock(&queue->mutex);
     mtx_destroy(&queue->mutex);
     cnd_destroy(&queue->not_empty);
+
 }

@@ -1,7 +1,12 @@
 #pragma once
 
 #include <stdatomic.h>
+
+#if !defined(WIN32) || defined(_MSC_VER) // MSCV and linux/mac
 #include <threads.h>
+#else
+#include "fake_threads.h" // MinGW
+#endif
 
 #include "common.h"
 #include "game.h"
@@ -38,8 +43,10 @@ typedef struct {
     // netcode
     bool is_server;
     bool online_disable;
-    atomic_bool running;
+    atomic_int running;
     i32 socket_fd;
+
+    
     struct {
         thrd_t receive_thrd;
         Queue rx_queue;

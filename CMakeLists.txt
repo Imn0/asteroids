@@ -1,19 +1,21 @@
 cmake_minimum_required(VERSION 3.10)
 project(asteroids C)
 
-set(CMAKE_C_COMPILER clang)
 set(CMAKE_C_STANDARD 11)
 
-add_compile_options(-O2 -Wall -Wextra -Wpedantic -g)
+if(NOT MSVC)
+    add_compile_options(-O2 -Wall -Wextra -Wpedantic -g)
+endif()
 
 include_directories(src/headers src/common)
 
-find_package(SDL2 REQUIRED)
-find_package(SDL2_mixer REQUIRED)
-find_package(SDL2_image REQUIRED)
-find_package(SDL2_ttf REQUIRED)
+if(NOT MSVC)
+    find_package(SDL2 REQUIRED)
+    find_package(SDL2_mixer REQUIRED)
+    find_package(SDL2_image REQUIRED)
+    find_package(SDL2_ttf REQUIRED)
+endif()
 
-# Source files
 file(GLOB_RECURSE SRC
     "src/*.c"
     "src/**/*.c"
@@ -22,32 +24,52 @@ file(GLOB_RECURSE SRC
 )
 add_executable(asteroids ${SRC})
 
-
-target_include_directories(asteroids
-    PRIVATE ${SDL2_INCLUDE_DIRS}
-    PRIVATE ${SDL2_IMAGE_INCLUDE_DIRS}
-    PRIVATE ${SDL2_TTF_INCLUDE_DIRS}
-    PRIVATE ${SDL2_MIXER_INCLUDE_DIRS}
-)
-
 if(MSVC)
-    target_link_libraries(asteroids PRIVATE m SDL2::SDL2 SDL2::SDL2main SDL2_image::SDL2_image SDL2_ttf::SDL2_ttf SDL2_mixer::SDL2_mixer)
-elseif(WIN32)
-    target_link_libraries(asteroids PRIVATE m ${SDL2_LIBRARIES} SDL2_image::SDL2_image SDL2_ttf::SDL2_ttf SDL2_mixer::SDL2_mixer mingw32)
+set(CMAKE_C_FLAGS "/O2 /experimental:c11atomics /Tc" CACHE INTERNAL "")
+
+    set(SDL2_INCLUDE_DIRS "C:/VC_lib/SDL2-2.30.5/include" CACHE PATH "Path to SDL2 include directory")
+    set(SDL2_LIBRARIES "C:/VC_lib/SDL2-2.30.5/lib/x64" CACHE PATH "Path to SDL2 library directory")
+    set(SDL2_IMAGE_INCLUDE_DIRS "C:/VC_lib/SDL2_image-2.8.2/include" CACHE PATH "Path to SDL2_image include directory")
+    set(SDL2_IMAGE_LIBRARIES "C:/VC_lib/SDL2_image-2.8.2/lib/x64" CACHE PATH "Path to SDL2_image library directory")
+    set(SDL2_TTF_INCLUDE_DIRS "C:/VC_lib/SDL2_ttf-2.22.0/include" CACHE PATH "Path to SDL2_ttf include directory")
+    set(SDL2_TTF_LIBRARIES "C:/VC_lib/SDL2_ttf-2.22.0/lib/x64" CACHE PATH "Path to SDL2_ttf library directory")
+    set(SDL2_MIXER_INCLUDE_DIRS "C:/VC_lib/SDL2_mixer-2.8.0/include" CACHE PATH "Path to SDL2_mixer include directory")
+    set(SDL2_MIXER_LIBRARIES "C:/VC_lib/SDL2_mixer-2.8.0/lib/x64" CACHE PATH "Path to SDL2_mixer library directory")
+
+    include_directories(${SDL2_INCLUDE_DIRS})
+    include_directories(${SDL2_IMAGE_INCLUDE_DIRS})
+    include_directories(${SDL2_TTF_INCLUDE_DIRS})
+    include_directories(${SDL2_MIXER_INCLUDE_DIRS})
+
+    target_link_libraries(asteroids PRIVATE 
+        ws2_32
+        ${SDL2_LIBRARIES}/SDL2.lib
+        ${SDL2_LIBRARIES}/SDL2main.lib
+        ${SDL2_IMAGE_LIBRARIES}/SDL2_image.lib
+        ${SDL2_TTF_LIBRARIES}/SDL2_ttf.lib
+        ${SDL2_MIXER_LIBRARIES}/SDL2_mixer.lib
+    )
 else()
-    target_link_libraries(asteroids PRIVATE m ${SDL2_LIBRARIES} SDL2_image::SDL2_image SDL2_ttf::SDL2_ttf SDL2_mixer::SDL2_mixer)
+    target_include_directories(asteroids
+        PRIVATE ${SDL2_INCLUDE_DIRS}
+        PRIVATE ${SDL2_IMAGE_INCLUDE_DIRS}
+        PRIVATE ${SDL2_TTF_INCLUDE_DIRS}
+        PRIVATE ${SDL2_MIXER_INCLUDE_DIRS}
+    )
+
+    target_link_libraries(asteroids PRIVATE  ${SDL2_LIBRARIES} SDL2_image::SDL2_image SDL2_ttf::SDL2_ttf SDL2_mixer::SDL2_mixer)
 endif()
 
-if(WIN32)
-    add_custom_command(TARGET asteroids POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        $<TARGET_FILE:SDL2::SDL2>
-        $<TARGET_FILE:SDL2_image::SDL2_image>
-        $<TARGET_FILE:SDL2_ttf::SDL2_ttf>
-        $<TARGET_FILE:SDL2_mixer::SDL2_mixer>
-        $<TARGET_FILE_DIR:base>
-    )
-endif()
+# if(WIN32)
+#     add_custom_command(TARGET asteroids POST_BUILD
+#         COMMAND ${CMAKE_COMMAND} -E copy_if_different
+#         $<TARGET_FILE:SDL2::SDL2>
+#         $<TARGET_FILE:SDL2_image::SDL2_image>
+#         $<TARGET_FILE:SDL2_ttf::SDL2_ttf>
+#         $<TARGET_FILE:SDL2_mixer::SDL2_mixer>
+#         $<TARGET_FILE_DIR:asteroids>
+#     )
+# endif()
 
 set_target_properties(asteroids PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"

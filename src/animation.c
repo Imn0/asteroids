@@ -40,7 +40,7 @@ Animation* create_sprinkle_animation(V2f32 position, i32 num_sprinkles,
     return animation;
 }
 
-void update_player_death_animation(AnimationPlayerDeath animation[static 1]) {
+void update_player_death_animation(AnimationPlayerDeath *animation) {
 
     for (i32 i = 0; i < PLAYER_SEGMENTS_SIZE; i++) {
         animation->segment_positions[i].x +=
@@ -53,7 +53,7 @@ void update_player_death_animation(AnimationPlayerDeath animation[static 1]) {
     animation->common.ttl -= delta_time;
 }
 
-void render_player_death_animation(AnimationPlayerDeath animation[static 1]) {
+void render_player_death_animation(AnimationPlayerDeath *animation) {
     SDL_SetRenderDrawColor(state.renderer, 255, 255, 255, 255);
 
     for (i32 i = 0; i < PLAYER_SEGMENTS_SIZE; i++) {
@@ -73,7 +73,7 @@ void render_player_death_animation(AnimationPlayerDeath animation[static 1]) {
     SDL_SetRenderDrawColor(state.renderer, 0, 0, 0, 255);
 }
 
-void render_sprinkle_animation(AnimationSprinkle animation[static 1]) {
+void render_sprinkle_animation(AnimationSprinkle *animation) {
     u8 seed = animation->seed;
     SDL_SetRenderDrawColor(state.renderer, 255, 255, 255, 255);
 
@@ -103,7 +103,7 @@ void render_sprinkle_animation(AnimationSprinkle animation[static 1]) {
     animation->common.ttl -= delta_time;
 }
 
-inline void animation_update(Animation animation[static 1]) {
+inline void animation_update(Animation *animation) {
 
     switch (animation->type) {
     case ANIMATION_PLAYER_DEATH:
@@ -115,7 +115,7 @@ inline void animation_update(Animation animation[static 1]) {
     }
 }
 
-inline void animation_render(Animation animation[static 1]) {
+inline void animation_render(Animation *animation) {
     switch (animation->type) {
     case ANIMATION_PLAYER_DEATH:
         render_player_death_animation(&animation->animation.player_death);

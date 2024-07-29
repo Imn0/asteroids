@@ -1,6 +1,6 @@
 #include "common.h"
 
-func ll_iter_assign(LinkedListIter iter[static 1], LinkedList list[static 1]) {
+func ll_iter_assign(LinkedListIter *iter, LinkedList *list) {
     if (list->size == 0) {
         iter->node = NULL;
         return CONTAINER_EMPTY;
@@ -10,8 +10,8 @@ func ll_iter_assign(LinkedListIter iter[static 1], LinkedList list[static 1]) {
     return OK;
 }
 
-func ll_iter_assign_direction(LinkedListIter iter[static 1],
-                              LinkedList list[static 1],
+func ll_iter_assign_direction(LinkedListIter *iter,
+                              LinkedList *list,
                               IterDirection direction) {
     if (list->size == 0) {
         iter->node = NULL;
@@ -27,9 +27,9 @@ func ll_iter_assign_direction(LinkedListIter iter[static 1],
     return OK;
 }
 
-bool ll_iter_end(LinkedListIter iter[static 1]) { return iter->node == NULL; }
+bool ll_iter_end(LinkedListIter *iter) { return iter->node == NULL; }
 
-func ll_iter_next(LinkedListIter iter[static 1]) {
+func ll_iter_next(LinkedListIter *iter) {
     if (iter->node == NULL) {
         return CONTAINER_EMPTY;
     }
@@ -42,7 +42,7 @@ func ll_iter_next(LinkedListIter iter[static 1]) {
     return OK;
 }
 
-func ll_iter_prev(LinkedListIter iter[static 1]) {
+func ll_iter_prev(LinkedListIter *iter) {
     if (iter->node == NULL) {
         return CONTAINER_EMPTY;
     }
@@ -55,22 +55,22 @@ func ll_iter_prev(LinkedListIter iter[static 1]) {
     return OK;
 }
 
-void ll_iter_strip(LinkedListIter iter[static 1]) { iter->node = NULL; }
+void ll_iter_strip(LinkedListIter *iter) { iter->node = NULL; }
 
-void* ll_iter_peek(LinkedListIter iter[static 1]) {
+void* ll_iter_peek(LinkedListIter *iter) {
     if (iter->node == NULL) {
         return NULL;
     }
     return iter->node->data;
 }
 
-void ll_init(LinkedList list[static 1]) {
+void ll_init(LinkedList *list) {
     list->head = NULL;
     list->tail = NULL;
     list->size = 0;
 }
 
-func ll_push_back_dtor(LinkedList list[static 1], void* data,
+func ll_push_back_dtor(LinkedList *list, void* data,
                        void (*dtor)(void* data)) {
     LinkedListNode* node = malloc(sizeof(LinkedListNode));
     if (node == NULL) {
@@ -91,11 +91,11 @@ func ll_push_back_dtor(LinkedList list[static 1], void* data,
     return ERR_OK;
 }
 
-func ll_push_back(LinkedList list[static 1], void* data) {
+func ll_push_back(LinkedList *list, void* data) {
     return ll_push_back_dtor(list, data, &free);
 }
 
-func ll_push_front_dtor(LinkedList list[static 1], void* data,
+func ll_push_front_dtor(LinkedList *list, void* data,
                         void (*dtor)(void* data)) {
     LinkedListNode* node = malloc(sizeof(LinkedListNode));
     if (node == NULL) {
@@ -117,12 +117,12 @@ func ll_push_front_dtor(LinkedList list[static 1], void* data,
     return OK;
 }
 
-func ll_push_front(LinkedList list[static 1], void* data) {
+func ll_push_front(LinkedList *list, void* data) {
     return ll_push_front_dtor(list, data, &free);
 }
 
-func ll_iter_remove_at(LinkedList list[static 1],
-                       LinkedListIter iter[static 1]) {
+func ll_iter_remove_at(LinkedList *list,
+                       LinkedListIter *iter) {
     if (iter->node == NULL) {
         return CONTAINER_EMPTY;
     }
@@ -155,7 +155,7 @@ func ll_iter_remove_at(LinkedList list[static 1],
 
     return OK;
 }
-func ll_pop_back(LinkedList list[static 1], void** data) {
+func ll_pop_back(LinkedList *list, void** data) {
     if (list->size == 0) {
         return CONTAINER_EMPTY;
     }
@@ -174,7 +174,7 @@ func ll_pop_back(LinkedList list[static 1], void** data) {
     return OK;
 }
 
-func ll_pop_front(LinkedList list[static 1], void** data) {
+func ll_pop_front(LinkedList *list, void** data) {
     if (list->size == 0) {
         return CONTAINER_EMPTY;
     }
@@ -193,7 +193,7 @@ func ll_pop_front(LinkedList list[static 1], void** data) {
     return OK;
 }
 
-void ll_destroy(LinkedList list[static 1]) {
+void ll_destroy(LinkedList *list) {
     LinkedListNode* node = list->head;
     while (node != NULL) {
         LinkedListNode* next = node->next;

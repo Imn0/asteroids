@@ -1,4 +1,4 @@
-#include <SDL2/SDL.h>
+#include <SDL.h>
 
 #include "game.h"
 #include "netcode.h"
@@ -151,8 +151,6 @@ void player_update(Player* player) {
     // deaceleration
     decelerate_v2f32(&player->velocity, PLAYER_ACCELERATION_SPEED / 10);
 
-    queue_enqueue(&network_state.transmit.tx_queue,
-                  packet_from_player(&local_player));
 }
 
 void player_render(Player* player) {

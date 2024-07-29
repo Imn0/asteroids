@@ -1,5 +1,5 @@
-#include <SDL2/SDL_timer.h>
-
+#include <SDL_timer.h>
+#include <stdio.h>
 #include "debug.h"
 #include "entity.h"
 #include "game.h"

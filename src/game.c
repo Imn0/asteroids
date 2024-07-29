@@ -1,8 +1,12 @@
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
-#include <SDL2/SDL_ttf.h>
+#include <SDL.h>
+#include <SDL_image.h>
+#include <SDL_ttf.h>
 #include <time.h>
+
+#ifndef _MSC_VER
 #include <unistd.h>
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,6 +68,7 @@ void game_init() {
 #ifdef VSYNC_ENABLED
                                         | SDL_RENDERER_PRESENTVSYNC
 #endif
+
     );
     ASSERT(state.renderer, "Failed to init renderer %s\n", SDL_GetError());
 
@@ -238,8 +243,8 @@ void game_process() {
 }
 
 void game_update_remote() {
-
     mtx_lock(&network_state.remote_player_state.mutex);
+
     remote_player.angle_deg =
         network_state.remote_player_state.player_state.angle;
     remote_player.position.x = network_state.remote_player_state.player_state.x;
@@ -250,6 +255,9 @@ void game_update_remote() {
         network_state.remote_player_state.player_state.v_y;
     remote_player.flags = network_state.remote_player_state.player_state.flags;
     mtx_unlock(&network_state.remote_player_state.mutex);
+
+
+    queue_enqueue(&network_state.transmit.tx_queue, packet_from_player(&local_player));
 }
 
 void game_render() {
@@ -258,7 +266,7 @@ void game_render() {
     SDL_RenderClear(state.renderer);
 
     SDL_Rect logicalRect = { 0, 0, .w = WINDOW_WIDTH, .h = WINDOW_HEIGHT };
-    SDL_SetRenderDrawColor(state.renderer, 0x21, 0x21, 0x21, 255);
+    SDL_SetRenderDrawColor(state.renderer, BACKGROUND_COLOR, 255);
     SDL_RenderFillRect(state.renderer, &logicalRect);
     SDL_SetRenderDrawColor(state.renderer, 0, 0, 0, 255); 
 #ifdef DEBUG_ENABLED

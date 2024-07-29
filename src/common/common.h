@@ -1,14 +1,22 @@
 /** @file */
 #pragma once
 
-#include <SDL2/SDL.h>
+#include <SDL.h>
 #include <float.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+
+#if !defined(WIN32) || defined(_MSC_VER) // MSCV and linux/mac
 #include <threads.h>
+#else
+#include "fake_threads.h" // MinGW
+#endif
+
+
 
 #include "settings.h"
 
@@ -23,7 +31,6 @@ typedef uint64_t u64;
 typedef float f32;
 typedef double f64;
 typedef size_t usize;
-typedef ssize_t isize;
 
 typedef struct _v2_f32 {
     f32 x;
@@ -137,8 +144,8 @@ typedef struct {
     usize max_size;
 } Queue;
 
-func queue_init(Queue queue[static 1], usize max_size);
-func queue_enqueue(Queue queue[static 1], void* data);
+func queue_init(Queue* queue, usize max_size);
+func queue_enqueue(Queue* queue, void* data);
 
 /**
  * @brief Dequeues data from queue places it in data
@@ -147,8 +154,8 @@ func queue_enqueue(Queue queue[static 1], void* data);
  * @param data
  * @return ```OK```  when data was sucessfuly dequeued
  */
-func queue_dequeue(Queue queue[static 1], void** data);
-void queue_destroy(Queue queue[static 1]);
+func queue_dequeue(Queue* queue, void** data);
+void queue_destroy(Queue* queue);
 /* FIFO QUEUE */
 
 /* LINKED LIST */
@@ -175,22 +182,22 @@ typedef struct {
     IterDirection direction;
 } LinkedListIter;
 
-func ll_iter_assign(LinkedListIter iter[static 1], LinkedList list[static 1]);
-func ll_iter_assign_direction(LinkedListIter iter[static 1],
-                              LinkedList list[static 1],
+func ll_iter_assign(LinkedListIter *iter, LinkedList *list);
+func ll_iter_assign_direction(LinkedListIter *iter,
+                              LinkedList *list,
                               IterDirection direction);
-bool ll_iter_end(LinkedListIter iter[static 1]);
-func ll_iter_next(LinkedListIter iter[static 1]);
-func ll_iter_prev(LinkedListIter iter[static 1]);
-void* ll_iter_peek(LinkedListIter iter[static 1]);
-void ll_iter_strip(LinkedListIter iter[static 1]);
-void ll_init(LinkedList list[static 1]);
-func ll_push_back_dtor(LinkedList list[static 1], void* data,
+bool ll_iter_end(LinkedListIter *iter);
+func ll_iter_next(LinkedListIter *iter);
+func ll_iter_prev(LinkedListIter *iter);
+void* ll_iter_peek(LinkedListIter *iter);
+void ll_iter_strip(LinkedListIter *iter);
+void ll_init(LinkedList *list);
+func ll_push_back_dtor(LinkedList *list, void* data,
                        void (*dtor)(void* data));
-func ll_push_back(LinkedList list[static 1], void* data);
-func ll_push_front_dtor(LinkedList list[static 1], void* data,
+func ll_push_back(LinkedList *list, void* data);
+func ll_push_front_dtor(LinkedList *list, void* data,
                         void (*dtor)(void* data));
-func ll_push_front(LinkedList list[static 1], void* data);
+func ll_push_front(LinkedList *list, void* data);
 
 /**
  * @brief frees node with contents at current iter position, moves iter to
@@ -200,11 +207,11 @@ func ll_push_front(LinkedList list[static 1], void* data);
  * @param iter
  * @return func
  */
-func ll_iter_remove_at(LinkedList list[static 1],
-                       LinkedListIter iter[static 1]);
-func ll_pop_back(LinkedList list[static 1], void** data);
-func ll_pop_front(LinkedList list[static 1], void** data);
-void ll_destroy(LinkedList list[static 1]);
+func ll_iter_remove_at(LinkedList *list,
+                       LinkedListIter *iter);
+func ll_pop_back(LinkedList *list, void** data);
+func ll_pop_front(LinkedList *list, void** data);
+void ll_destroy(LinkedList *list);
 /* LINKED LIST */
 
 static inline void gfx_render_thick_line(SDL_Renderer* renderer, float x1,

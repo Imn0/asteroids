@@ -1,8 +1,16 @@
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
+#include <SDL.h>
+#include <SDL_image.h>
+
+#ifndef _MSC_VER
 #include <getopt.h>
-#include <stdio.h>
 #include <unistd.h>
+#endif
+
+#include <stdio.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 #include "common.h"
 #include "debug.h"
@@ -27,11 +35,21 @@ f32 delta_time;
 // menu
 
 i32 main(i32 argc, char* argv[]) {
+
+
+#if  defined(_WIN32) && defined(DEBUG_ENABLED) 
+    AllocConsole();
+    freopen("CONOUT$", "w", stdout);
+
+#endif
+
+
+
     network_state.online_disable = true;
     network_state.is_server = true;
-
-    int opt;
+    i32 opt;
     i32 client_port = 0;
+#ifndef _MSC_VER
     while ((opt = getopt(argc, argv, "sc:fp:d")) != -1) {
         switch (opt) {
         case 's':
@@ -52,9 +70,29 @@ i32 main(i32 argc, char* argv[]) {
             return -1;
         }
     }
+#else
+    if (argc > 1 && !strcmp(argv[1], "client")) {
+        if (argc != 3) {
+            fprintf(stderr, "not enough args!");
+            return -1;
+        }
+        network_state.online_disable = false;
+        network_state.is_server = false;
+        sscanf(argv[2], "%d", &client_port);
+    }
+    else if (argc > 1 && !strcmp(argv[1], "server")) {
+        network_state.online_disable = false;
+        network_state.is_server = true;
+    }
+
+#endif
 
     game_init();
     game_load_assets();
+
+
+    
+#if !defined(WIN32) || defined(_MSC_VER) // MSCV and linux/mac
     if (!network_state.online_disable) {
         if (network_state.is_server == true) {
             ASSERT(server_init() == OK, " ");
@@ -63,7 +101,10 @@ i32 main(i32 argc, char* argv[]) {
             ASSERT(client_init(client_port) == OK, " ");
         }
     }
-    else {
+
+    else
+#endif
+    {
         remote_player.flags.invisible = 1;
     }
 
@@ -78,7 +119,6 @@ i32 main(i32 argc, char* argv[]) {
 
     SDL_version a;
     SDL_GetVersion(&a);
-    printf("%d %d %d\n", a.major, a.minor, a.patch);
 
     while (!state.exit) {
 #ifdef DEBUG_ENABLED
@@ -93,12 +133,15 @@ i32 main(i32 argc, char* argv[]) {
         if (state.exit) {
             continue;
         }
+
+#if !defined(WIN32) || defined(_MSC_VER) // MSCV and linux/mac
         if (!network_state.online_disable) {
             if (remote_update_accumulator >= remote_update_interval) {
                 game_update_remote();
                 remote_update_accumulator -= remote_update_interval;
             }
         }
+#endif
 
 #ifdef DEBUG_ENABLED
         if (!debug_state.stop_logic)

@@ -51,7 +51,7 @@ Entity* entity_create_bullet(V2f32 position, V2f32 initial_velocity,
     return entity;
 }
 
-void rock_update(EntityRock rock[static 1]) {
+void rock_update(EntityRock *rock) {
 
     rock->common.position.x += rock->common.velocity.x * delta_time;
     rock->common.position.y += rock->common.velocity.y * delta_time;
@@ -92,7 +92,7 @@ void rock_update(EntityRock rock[static 1]) {
     }
 }
 
-void bullet_update(EntityBullet bullet[static 1]) {
+void bullet_update(EntityBullet *bullet) {
     bullet->last_position.x = bullet->common.position.x;
     bullet->last_position.y = bullet->common.position.y;
 
@@ -105,7 +105,7 @@ void bullet_update(EntityBullet bullet[static 1]) {
     }
 }
 
-void bullet_render(EntityBullet bullet[static 1]) {
+void bullet_render(EntityBullet *bullet) {
     SDL_SetRenderDrawColor(state.renderer, 255, 255, 255, 255);
 
     // Define the rectangle with the center at (cx, cy)
@@ -120,7 +120,7 @@ void bullet_render(EntityBullet bullet[static 1]) {
     SDL_SetRenderDrawColor(state.renderer, 0, 0, 0, 0);
 }
 
-void rock_render(EntityRock rock[static 1]) {
+void rock_render(EntityRock *rock) {
     SDL_SetRenderDrawColor(state.renderer, 255, 255, 255, 255);
 
     for (i32 i = 0; i < rock->num_vertices; i++) {
@@ -158,7 +158,7 @@ void rock_render(EntityRock rock[static 1]) {
     SDL_SetRenderDrawColor(state.renderer, 0, 0, 0, 0);
 }
 
-inline void entity_update(Entity entity[static 1]) {
+inline void entity_update(Entity *entity) {
 
     if (entity->data.common.position.x < 0)
         entity->data.common.position.x = WINDOW_WIDTH;
@@ -180,7 +180,7 @@ inline void entity_update(Entity entity[static 1]) {
     }
 }
 
-inline void entity_render(Entity entity[static 1]) {
+inline void entity_render(Entity *entity) {
     switch (entity->type) {
     case ENTITY_BULLET:
         bullet_render(&entity->data.bullet);
@@ -191,7 +191,7 @@ inline void entity_render(Entity entity[static 1]) {
     }
 }
 
-bool entity_check_collision_point(Entity entity[static 1], V2f32 point) {
+bool entity_check_collision_point(Entity *entity, V2f32 point) {
     if (entity->type != ENTITY_ROCK) {
         return false;
     }
@@ -225,7 +225,7 @@ bool line_intersects_line(V2f32 p1, V2f32 p2, V2f32 q1, V2f32 q2) {
     return s >= 0 && s <= 1 && t >= 0 && t <= 1;
 }
 
-bool entity_check_collision_line(Entity entity[static 1], V2f32 point1,
+bool entity_check_collision_line(Entity *entity, V2f32 point1,
                                  V2f32 point2) {
     if (entity->type != ENTITY_ROCK) {
         return false;
