@@ -68,8 +68,11 @@ void render_player_death_animation(AnimationPlayerDeath *animation) {
             (i32)start_point.y + animation->segment_positions[i].y,
             (i32)end_point.x + animation->segment_positions[i].x,
             (i32)end_point.y + animation->segment_positions[i].y,
-            LINE_THICKNESS);
+            LINE_THICKNESS, (SDL_Color) { .r = 255, .g = 255, .b = 255, .a = 255 });
+        //TODO FIX COLOUR
     }
+
+    
     SDL_SetRenderDrawColor(state.renderer, 0, 0, 0, 255);
 }
 

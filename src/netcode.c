@@ -322,7 +322,8 @@ i32 send_packets(void* args) {
                 else {
                  // Other error occurred
                     // perror("send error");
-                    // free(p);
+                    free(p);
+                    printf("send error");
                     // return ERR_NETWORK;
                 }
             }

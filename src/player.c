@@ -4,6 +4,7 @@
 #include "netcode.h"
 #include "physics.h"
 #include "player.h"
+#include "sfx.h"
 
 void player_init(Player* player) {
     player->position = (V2f32){ .x = WINDOW_WIDTH / 2, .y = WINDOW_HEIGHT / 2 };
@@ -14,6 +15,7 @@ void player_init(Player* player) {
     player->bloop_timer = PLAYER_BOOP_OFF_TIME;
 }
 
+//engine effects
 void player_boop(Player* player) {
     player->bloop_timer -= delta_time;
     if (player->bloop_timer < 0.0f) {
@@ -24,29 +26,40 @@ void player_boop(Player* player) {
         else {
             player->bloop_timer = PLAYER_BOOP_ON_TIME;
             player->ex_flags.boop = 1;
+            play_sound(SFX_THRUST);
         }
     }
 }
 
+
+// TODO better shooting logic, max 4 bullets at a time, burst mode
+
 void player_shoot(Player* player) {
-    if (player->shoot_timer <= 0.0f) {
-        player->shoot_timer = PLAYER_SHOOT_COOLDOWN;
+    if (player->shoot_timer > 0.0f) { return; }
 
-        // create local event
-        Event* e = malloc(sizeof(Event));
-        e->type = EVENT_TYPE_SHOOT;
-        e->event.shoot = (EventShoot){ .position = player->position,
-                                      .angle_deg = player->angle_deg,
-                                      .initial_velocity = player->velocity };
-        queue_enqueue(&state.event_queue, e);
+    player->shoot_timer = PLAYER_SHOOT_COOLDOWN;
 
-        if (!network_state.online_disable) {
-            Packet* p = packet_from_event(e);
-            if (e == NULL) {
-                return;
-            }
-            queue_enqueue(&network_state.transmit.tx_queue, (void*)p);
+    player->velocity.x -= sinf(deg_to_rad(player->angle_deg)) *
+            PLAYER_ACCELERATION_SPEED * 0.09f;
+        player->velocity.y += cosf(deg_to_rad(player->angle_deg)) *
+            PLAYER_ACCELERATION_SPEED * 0.09f;
+
+
+    // create local event
+    Event* e = malloc(sizeof(Event));
+    e->type = EVENT_TYPE_SHOOT;
+    e->event.shoot = (EventShoot){ .position = player->position,
+                                  .angle_deg = player->angle_deg,
+                                  .initial_velocity = player->velocity };
+    queue_enqueue(&state.event_queue, e);
+    play_sound(SFX_SHOOT);
+
+    if (!network_state.online_disable) {
+        Packet* p = packet_from_event(e);
+        if (e == NULL) {
+            return;
         }
+        queue_enqueue(&network_state.transmit.tx_queue, (void*)p);
     }
 }
 
@@ -148,16 +161,14 @@ void player_update(Player* player) {
     if (player->position.y < 0) player->position.y = WINDOW_HEIGHT;
     if (player->position.y > WINDOW_HEIGHT) player->position.y = 0;
 
-    // deaceleration
     decelerate_v2f32(&player->velocity, PLAYER_ACCELERATION_SPEED / 10);
 
 }
 
-void player_render(Player* player) {
+void player_render(Player* player, SDL_Color color) {
     if (player->flags.invisible) {
         return;
     }
-    SDL_SetRenderDrawColor(state.renderer, 255, 255, 255, 255);
 
     for (i32 i = 0; i < PLAYER_SEGMENTS_SIZE; i++) {
         V2f32 start_point = rotate_point(player_segments[i][0], (V2f32) { 0, 0 },
@@ -169,7 +180,7 @@ void player_render(Player* player) {
             state.renderer, (i32)start_point.x + player->position.x,
             (i32)start_point.y + player->position.y,
             (i32)end_point.x + player->position.x,
-            (i32)end_point.y + player->position.y, LINE_THICKNESS);
+            (i32)end_point.y + player->position.y, LINE_THICKNESS, color);
     }
 
     if (player->phantom_player.phantom_enabled) {
@@ -187,7 +198,7 @@ void player_render(Player* player) {
                 (i32)start_point.y + player->phantom_player.position.y,
                 (i32)end_point.x + player->phantom_player.position.x,
                 (i32)end_point.y + player->phantom_player.position.y,
-                LINE_THICKNESS);
+                LINE_THICKNESS, color);
         }
     }
 
@@ -204,8 +215,7 @@ void player_render(Player* player) {
                 state.renderer, (i32)start_point.x + player->position.x,
                 (i32)start_point.y + player->position.y,
                 (i32)end_point.x + player->position.x,
-                (i32)end_point.y + player->position.y, LINE_THICKNESS);
+                (i32)end_point.y + player->position.y, LINE_THICKNESS, color);
         }
     }
-    SDL_SetRenderDrawColor(state.renderer, 0, 0, 0, 0);
 }

@@ -4,13 +4,13 @@
 #define WINDOW_WIDTH 1280
 #define WINDOW_HEIGHT 1280
 #define WINDOW_SCALING
-#define LINE_THICKNESS 3
+#define LINE_THICKNESS 2
 // #define VSYNC_ENABLED
 #define DEBUG_ENABLED 
 #define BACKGROUND_COLOR 0x15, 0x15, 0x15
+// #define SOFTWARE_RENDERING
 
 
-#define PLAYER_SIZE 64
 #define TEXTURES_CAPACITY 16
 
 #define REMOTE_UPDATE_FREQUENCY 24.0f // read and write to queue hz

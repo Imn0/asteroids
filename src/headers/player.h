@@ -2,21 +2,23 @@
 
 #include "common.h"
 
-#define PLAYER_BOOP_OFF_TIME 0.2f
-#define PLAYER_BOOP_ON_TIME 0.5f
-
+#define PLAYER_SCALE 0.66f
+#define PLAYER_SIZE 64 * 0.66f
+#define PLAYER_BOOP_OFF_TIME 0.05f
+#define PLAYER_BOOP_ON_TIME 0.05f
 #define PLAYER_SEGMENTS_SIZE 3
+
 
 static const V2f32 player_segments[PLAYER_SEGMENTS_SIZE][2] = {
     // also used in animation
-    {{0, -32}, {-20.42553, 32}},
-    {{0, -32}, {20.42553, 32}},
-    {{-15, 15}, {15, 15}},
+    {{0 * PLAYER_SCALE, -32 * PLAYER_SCALE}, {-20.42553 * PLAYER_SCALE, 32 * PLAYER_SCALE}},
+    {{0 * PLAYER_SCALE, -32 * PLAYER_SCALE}, {20.42553 * PLAYER_SCALE, 32 * PLAYER_SCALE}},
+    {{-15 * PLAYER_SCALE, 15 * PLAYER_SCALE}, {15 * PLAYER_SCALE, 15 * PLAYER_SCALE}},
 };
 
 static const V2f32 player_boop_segments[][2] = {
-    {{0, 44}, {-10, 15}},
-    {{0, 44}, {10, 15}},
+    {{0 * PLAYER_SCALE, 44 * PLAYER_SCALE}, {-10 * PLAYER_SCALE, 15 * PLAYER_SCALE}},
+    {{0 * PLAYER_SCALE, 44 * PLAYER_SCALE}, {10 * PLAYER_SCALE, 15 * PLAYER_SCALE}},
 };
 
 typedef struct player_flags_t {
@@ -49,4 +51,4 @@ extern Player local_player;
 void player_init(Player* player);
 void player_process_input(Player* player);
 void player_update(Player* player);
-void player_render(Player* player);
+void player_render(Player* player, SDL_Color color);

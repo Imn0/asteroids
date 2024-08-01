@@ -10,6 +10,7 @@
 
 #include "common.h"
 #include "game.h"
+#include "events.h"
 #include "player.h"
 
 typedef enum PacketType { PACKET_PLAYER, PACKET_EVENT } PacketType;

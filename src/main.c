@@ -28,6 +28,7 @@ NetworkState network_state;
 f32 delta_time;
 
 // TODO:
+// ufo
 // network - host packet types
 // player collison death
 // points
@@ -91,7 +92,7 @@ i32 main(i32 argc, char* argv[]) {
     game_load_assets();
 
 
-    
+
 #if !defined(WIN32) || defined(_MSC_VER) // MSCV and linux/mac
     if (!network_state.online_disable) {
         if (network_state.is_server == true) {
@@ -114,7 +115,7 @@ i32 main(i32 argc, char* argv[]) {
 
     if (network_state.is_server) {
 
-        generate_rocks(10);
+        add_event_starting_rocks();
     }
 
     SDL_version a;

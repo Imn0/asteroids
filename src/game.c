@@ -1,5 +1,6 @@
 #include <SDL.h>
 #include <SDL_image.h>
+#include <SDL_mixer.h>
 #include <SDL_ttf.h>
 #include <time.h>
 
@@ -19,38 +20,10 @@
 #include "netcode.h"
 #include "player.h"
 #include "settings.h"
-
-void generate_rocks(i32 rock_num) {
-    srand(time(NULL));
-    for (i32 i = 0; i < rock_num; i++) {
-        /* code */
-
-        u8 seed = rand();
-
-        Event* e = malloc(sizeof(Event));
-        e->type = EVENT_TYPE_NEW_ROCK;
-        EventRock* rock = &e->event.rock;
-        *rock = (EventRock){
-            .base_radius = rand_float(25.0f, 130.0f),
-            .jaggedness = rand_float(0.7f, 0.95f),
-            .num_vertices = rand_i32(8, ASTEROID_MAX_POINTS - 1),
-            .position = (V2f32){.x = rand_float(0.0f, WINDOW_WIDTH),
-                                .y = rand_float(0.0f, WINDOW_HEIGHT)},
-            .initial_velocity = (V2f32){.x = rand_float(5.0f, 45.0f),
-                                        .y = rand_float(5.0f, 45.0f)},
-            .seed = seed };
-
-        queue_enqueue(&state.event_queue, e);
-
-        if (!network_state.online_disable) {
-            Packet* packet = packet_from_event(e);
-            queue_enqueue(&network_state.transmit.tx_queue, packet);
-        }
-    }
-}
+#include "sfx.h"
 
 void game_init() {
-    ASSERT(!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS),
+    ASSERT(!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_AUDIO | SDL_INIT_TIMER),
            "Failed to init SDL %s\n", SDL_GetError());
 
     char window_name[256];
@@ -60,11 +33,15 @@ void game_init() {
     state.window = SDL_CreateWindow(
         window_name, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         WINDOW_WIDTH, WINDOW_HEIGHT,
-        SDL_WINDOW_VULKAN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE);
+        SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE);
     ASSERT(state.window, "Failed to init window %s\n", SDL_GetError());
 
     state.renderer = SDL_CreateRenderer(state.window, -1,
+#ifdef SOFTWARE_RENDERING
+                                        SDL_RENDERER_SOFTWARE
+#else
                                         SDL_RENDERER_ACCELERATED
+#endif
 #ifdef VSYNC_ENABLED
                                         | SDL_RENDERER_PRESENTVSYNC
 #endif
@@ -90,11 +67,14 @@ void game_load_assets() {
     char font_path[1024];
     snprintf(font_path, sizeof(font_path), "%s/../assets/fonts/Montserrat-Regular.ttf", exe_path);
 
-    TTF_Init();
+    ASSERT(TTF_Init() == 0, "TTF failed to initialize");
     state.font = TTF_OpenFont(font_path, 24);
     state.small_font = TTF_OpenFont(font_path, 12);
     ASSERT((state.font != NULL), "failed to load font");
     state.textures.size = 0;
+
+    init_sound();
+
 }
 
 void game_get_input() {
@@ -142,10 +122,14 @@ void game_process() {
     if (network_state.is_server) {
         state.new_rock_timer -= delta_time;
         if (state.new_rock_timer < 0) {
-            state.new_rock_timer = 3.0f;
-            generate_rocks(1);
+
+            // TODO figure out the timer 
+            state.new_rock_timer = 10.0f;
+            add_event_random_rock(ROCK_BIG);
+
         }
     }
+    // TODO UFO
 
     player_update(&local_player);
     player_update(&remote_player);
@@ -165,7 +149,7 @@ void game_process() {
         case EVENT_TYPE_NEW_ROCK:
         {
             Entity* rock = entity_create_rock((struct entity_create_rock_args) {
-                .base_radius = e->event.rock.base_radius,
+                .rock_size = e->event.rock.rock_size,
                     .jaggedness = e->event.rock.jaggedness,
                     .num_vertices = e->event.rock.num_vertices,
                     .position = e->event.rock.position,
@@ -208,6 +192,13 @@ void game_process() {
                 Animation* a = create_sprinkle_animation(
                     entity_bullet->data.common.position, rand_i32(10, 20),
                     rand_i32(0, 255));
+
+                // TODO add points 
+                if (network_state.is_server) {
+                    add_event_from_rock_kill(
+                        entity_rock->data.rock.rock_size, entity_rock->data.rock.common.position, entity_rock->data.rock.common.velocity);
+                }
+                play_sound(sfx_rock[entity_rock->data.rock.rock_size]);
                 ll_push_back(&state.animations, a);
                 ll_iter_remove_at(&state.entities, &bullet_iter);
                 ll_iter_remove_at(&state.entities, &rock_iter);
@@ -219,7 +210,42 @@ void game_process() {
         ll_iter_next(&bullet_iter);
     }
 
-    // physics
+    // player collision
+    // TODO 
+    // ? move to player?
+    // TODO add event for this 
+    ll_iter_assign_direction(&rock_iter, &state.entities, LL_ITER_H_TO_T);
+    bool player_colision = false;
+    while (!ll_iter_end(&rock_iter)) {
+        entity_rock = ll_iter_peek(&rock_iter);
+        if (entity_rock->type != ENTITY_ROCK) {
+            break;
+        }
+        player_colision = entity_check_collision_point(entity_rock, local_player.position);
+        if (player_colision) break;
+        ll_iter_next(&rock_iter);
+
+    }
+
+
+    if (player_colision) {
+
+        // TODO add event and respawn logic  
+        Animation* a = create_player_death_animation(
+            local_player.position, local_player.velocity,
+            local_player.angle_deg);
+        ll_push_back(&state.animations, a);
+        local_player.position = (V2f32){
+            .x = WINDOW_WIDTH / 2,
+            .y = WINDOW_HEIGHT / 2,
+        };
+        local_player.velocity = (V2f32){ 0 };
+    }
+
+
+
+
+// physics
     LinkedListIter iter;
     ll_iter_assign(&iter, &state.entities);
     while (!ll_iter_end(&iter)) {
@@ -268,26 +294,16 @@ void game_render() {
     SDL_Rect logicalRect = { 0, 0, .w = WINDOW_WIDTH, .h = WINDOW_HEIGHT };
     SDL_SetRenderDrawColor(state.renderer, BACKGROUND_COLOR, 255);
     SDL_RenderFillRect(state.renderer, &logicalRect);
-    SDL_SetRenderDrawColor(state.renderer, 0, 0, 0, 255); 
+    SDL_SetRenderDrawColor(state.renderer, 0, 0, 0, 255);
 #ifdef DEBUG_ENABLED
     debug_render();
 #endif
 
     // redner player
-    player_render(&local_player);
-    player_render(&remote_player);
+    player_render(&local_player, (SDL_Color) { .r = 255, .g = 255, .b = 255, .a = 255 });
+    player_render(&remote_player, (SDL_Color) { .r = 255, .g = 128, .b = 128, .a = 255 });
 
-    SDL_SetRenderDrawColor(state.renderer, 255, 0, 0, 255);
 
-    // Define the rectangle with the center at (cx, cy)
-    SDL_Rect rect;
-    rect.w = 10;
-    rect.h = 10;
-    rect.x = (int)local_player.position.x - rect.w / 2;
-    rect.y = (int)local_player.position.y - rect.h / 2;
-
-    // Draw the rectangle
-    SDL_RenderFillRect(state.renderer, &rect);
     SDL_SetRenderDrawColor(state.renderer, 0, 0, 0, 0);
     LinkedListIter iter;
     ll_iter_assign(&iter, &state.entities);

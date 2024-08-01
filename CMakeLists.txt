@@ -4,7 +4,7 @@ project(asteroids C)
 set(CMAKE_C_STANDARD 11)
 
 if(NOT MSVC)
-    add_compile_options(-O2 -Wall -Wextra -Wpedantic -g)
+    add_compile_options(-O2 -Wall -Wextra -Wpedantic -g -Wno-strict-prototypes)
 endif()
 
 include_directories(src/headers src/common)
@@ -57,19 +57,8 @@ else()
         PRIVATE ${SDL2_MIXER_INCLUDE_DIRS}
     )
 
-    target_link_libraries(asteroids PRIVATE  ${SDL2_LIBRARIES} SDL2_image::SDL2_image SDL2_ttf::SDL2_ttf SDL2_mixer::SDL2_mixer)
+    target_link_libraries(asteroids PRIVATE m ${SDL2_LIBRARIES} SDL2_image::SDL2_image SDL2_ttf::SDL2_ttf SDL2_mixer::SDL2_mixer)
 endif()
-
-# if(WIN32)
-#     add_custom_command(TARGET asteroids POST_BUILD
-#         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-#         $<TARGET_FILE:SDL2::SDL2>
-#         $<TARGET_FILE:SDL2_image::SDL2_image>
-#         $<TARGET_FILE:SDL2_ttf::SDL2_ttf>
-#         $<TARGET_FILE:SDL2_mixer::SDL2_mixer>
-#         $<TARGET_FILE_DIR:asteroids>
-#     )
-# endif()
 
 set_target_properties(asteroids PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"

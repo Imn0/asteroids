@@ -16,13 +16,14 @@ Entity* entity_create_rock(struct entity_create_rock_args args) {
 
     // TODO THIS vvv
     e->rotation_speed = ASTEROID_MAX_ROTATION_SPEED;
-    e->base_radius = args.base_radius;
+    e->rock_size = args.rock_size;
+    e->base_radius = rock_sizes[args.rock_size];
 
     for (i32 i = 0; i < args.num_vertices; i++) {
         f32 angle = (f32)i / args.num_vertices * TAU;
-        f32 radius = args.base_radius *
+        f32 radius = e->base_radius *
             (1.0f - args.jaggedness +
-             args.jaggedness * (f32)random_table[rng_idx] / 255);
+             args.jaggedness * rand_float_seed(0, 1.0f, rng_idx));
         e->vertices[i].x = radius * cosf(angle);
         e->vertices[i].y = radius * sinf(angle);
         rng_idx += 1;
@@ -51,7 +52,7 @@ Entity* entity_create_bullet(V2f32 position, V2f32 initial_velocity,
     return entity;
 }
 
-void rock_update(EntityRock *rock) {
+void rock_update(EntityRock* rock) {
 
     rock->common.position.x += rock->common.velocity.x * delta_time;
     rock->common.position.y += rock->common.velocity.y * delta_time;
@@ -80,19 +81,23 @@ void rock_update(EntityRock *rock) {
         if (!rock->phantom.phantom_enabled) {
             rock->phantom.position.y = rock->common.position.x;
         }
-        rock->phantom.position.y = WINDOW_HEIGHT + rock->common.position.y;
+        else {
+            rock->phantom.position.y = WINDOW_HEIGHT + rock->common.position.y;
+        }
         rock->phantom.phantom_enabled = true;
     }
     else if (rock->common.position.y > WINDOW_HEIGHT - rock->base_radius) {
         if (!rock->phantom.phantom_enabled) {
             rock->phantom.position.y = rock->common.position.x;
         }
-        rock->phantom.position.y = rock->common.position.y - WINDOW_HEIGHT;
+        else {
+            rock->phantom.position.y = rock->common.position.y - WINDOW_HEIGHT;
+        }
         rock->phantom.phantom_enabled = true;
     }
 }
 
-void bullet_update(EntityBullet *bullet) {
+void bullet_update(EntityBullet* bullet) {
     bullet->last_position.x = bullet->common.position.x;
     bullet->last_position.y = bullet->common.position.y;
 
@@ -105,7 +110,7 @@ void bullet_update(EntityBullet *bullet) {
     }
 }
 
-void bullet_render(EntityBullet *bullet) {
+void bullet_render(EntityBullet* bullet) {
     SDL_SetRenderDrawColor(state.renderer, 255, 255, 255, 255);
 
     // Define the rectangle with the center at (cx, cy)
@@ -120,7 +125,7 @@ void bullet_render(EntityBullet *bullet) {
     SDL_SetRenderDrawColor(state.renderer, 0, 0, 0, 0);
 }
 
-void rock_render(EntityRock *rock) {
+void rock_render(EntityRock* rock) {
     SDL_SetRenderDrawColor(state.renderer, 255, 255, 255, 255);
 
     for (i32 i = 0; i < rock->num_vertices; i++) {
@@ -134,7 +139,7 @@ void rock_render(EntityRock *rock) {
             state.renderer, (i32)rotated_current.x + rock->common.position.x,
             (i32)rotated_current.y + rock->common.position.y,
             (i32)rotated_next.x + rock->common.position.x,
-            (i32)rotated_next.y + rock->common.position.y, LINE_THICKNESS);
+            (i32)rotated_next.y + rock->common.position.y, LINE_THICKNESS, (SDL_Color) { .r = 255, .g = 255, .b = 255, .a = 255 });
     }
 
     if (rock->phantom.phantom_enabled) {
@@ -151,14 +156,14 @@ void rock_render(EntityRock *rock) {
                 (i32)rotatedCurrent.x + rock->phantom.position.x,
                 (i32)rotatedCurrent.y + rock->phantom.position.y,
                 (i32)rotatedNext.x + rock->phantom.position.x,
-                (i32)rotatedNext.y + rock->phantom.position.y, LINE_THICKNESS);
+                (i32)rotatedNext.y + rock->phantom.position.y, LINE_THICKNESS, (SDL_Color) { .r = 255, .g = 255, .b = 255, .a = 255 });
         }
     }
 
     SDL_SetRenderDrawColor(state.renderer, 0, 0, 0, 0);
 }
 
-inline void entity_update(Entity *entity) {
+inline void entity_update(Entity* entity) {
 
     if (entity->data.common.position.x < 0)
         entity->data.common.position.x = WINDOW_WIDTH;
@@ -180,7 +185,7 @@ inline void entity_update(Entity *entity) {
     }
 }
 
-inline void entity_render(Entity *entity) {
+inline void entity_render(Entity* entity) {
     switch (entity->type) {
     case ENTITY_BULLET:
         bullet_render(&entity->data.bullet);
@@ -191,7 +196,7 @@ inline void entity_render(Entity *entity) {
     }
 }
 
-bool entity_check_collision_point(Entity *entity, V2f32 point) {
+bool entity_check_collision_point(Entity* entity, V2f32 point) {
     if (entity->type != ENTITY_ROCK) {
         return false;
     }
@@ -199,6 +204,13 @@ bool entity_check_collision_point(Entity *entity, V2f32 point) {
     EntityRock* rock = &entity->data.rock;
 
     point = (V2f32){ .x = point.x - rock->common.position.x, .y = point.y - rock->common.position.y };
+
+    V2f32 phantom_point;
+    if (rock->phantom.phantom_enabled) {
+        phantom_point = (V2f32){ .x = point.x - rock->phantom.position.x, .y = point.y - rock->phantom.position.y };
+        phantom_point = rotate_point(phantom_point, (V2f32) { 0 }, deg_to_rad(-rock->angle_deg));
+
+    }
 
     point = rotate_point(point, (V2f32) { 0 }, deg_to_rad(-rock->angle_deg));
 
@@ -208,7 +220,16 @@ bool entity_check_collision_point(Entity *entity, V2f32 point) {
             inside = !inside;
     }
 
+    if (inside || !rock->phantom.phantom_enabled) { return inside; }
+
+    inside = false;
+    for (i32 i = 0, j = rock->num_vertices - 1; i < rock->num_vertices; j = i++) {
+        if (((rock->vertices[i].y > phantom_point.y) != (rock->vertices[j].y > phantom_point.y)) &&
+            (phantom_point.x < (rock->vertices[j].x - rock->vertices[i].x) * (phantom_point.y - rock->vertices[i].y) / (rock->vertices[j].y - rock->vertices[i].y) + rock->vertices[i].x))
+            inside = !inside;
+    }
     return inside;
+
 }
 
 bool line_intersects_line(V2f32 p1, V2f32 p2, V2f32 q1, V2f32 q2) {
@@ -225,7 +246,7 @@ bool line_intersects_line(V2f32 p1, V2f32 p2, V2f32 q1, V2f32 q2) {
     return s >= 0 && s <= 1 && t >= 0 && t <= 1;
 }
 
-bool entity_check_collision_line(Entity *entity, V2f32 point1,
+bool entity_check_collision_line(Entity* entity, V2f32 point1,
                                  V2f32 point2) {
     if (entity->type != ENTITY_ROCK) {
         return false;
