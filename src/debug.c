@@ -47,8 +47,7 @@ void draw_info(SDL_Surface* surface, int y_offset) {
     SDL_Surface* fps_surface =
         TTF_RenderText_Solid(state.font, fps_text, text_color);
     if (fps_surface) {
-        SDL_Rect fps_rect = { x_margin, y_offset, fps_surface->w,
-                             fps_surface->h };
+        SDL_Rect fps_rect = { x_margin, y_offset, fps_surface->w, fps_surface->h };
         SDL_BlitSurface(fps_surface, NULL, surface, &fps_rect);
         SDL_FreeSurface(fps_surface);
     }
@@ -63,38 +62,40 @@ void draw_info(SDL_Surface* surface, int y_offset) {
     // }
 }
 
-void get_mouse_logical_position(V2f32* mouse){
+void get_mouse_logical_position(V2f32* mouse) {
     i32 actual_x, actual_y;
     SDL_GetMouseState(&actual_x, &actual_y);
 
     int current_window_w, current_window_h;
-        SDL_GetWindowSize(state.window, &current_window_w, &current_window_h);
+    SDL_GetWindowSize(state.window, &current_window_w, &current_window_h);
 
-        float logical_aspect_ratio = (float)WINDOW_WIDTH / WINDOW_HEIGHT;
-        float current_aspect_ratio = (float)current_window_w / current_window_h;
+    float logical_aspect_ratio = (float)WINDOW_WIDTH / WINDOW_HEIGHT;
+    float current_aspect_ratio = (float)current_window_w / current_window_h;
 
-        int viewport_x, viewport_y, viewport_w, viewport_h;
+    int viewport_x, viewport_y, viewport_w, viewport_h;
 
-        if (current_aspect_ratio > logical_aspect_ratio) {
-            viewport_h = current_window_h;
-            viewport_w = (int)(current_window_h * logical_aspect_ratio);
-            viewport_x = (current_window_w - viewport_w) / 2;
-            viewport_y = 0;
-        } else {
-            viewport_w = current_window_w;
-            viewport_h = (int)(current_window_w / logical_aspect_ratio);
-            viewport_x = 0;
-            viewport_y = (current_window_h - viewport_h) / 2;
-        }
+    if (current_aspect_ratio > logical_aspect_ratio) {
+        viewport_h = current_window_h;
+        viewport_w = (int)(current_window_h * logical_aspect_ratio);
+        viewport_x = (current_window_w - viewport_w) / 2;
+        viewport_y = 0;
+    }
+    else {
+        viewport_w = current_window_w;
+        viewport_h = (int)(current_window_w / logical_aspect_ratio);
+        viewport_x = 0;
+        viewport_y = (current_window_h - viewport_h) / 2;
+    }
 
-        if (actual_x >= viewport_x && actual_x < viewport_x + viewport_w &&
-            actual_y >= viewport_y && actual_y < viewport_y + viewport_h) {
-            mouse->x = (actual_x - viewport_x) * WINDOW_WIDTH / viewport_w;
-            mouse->y = (actual_y - viewport_y) * WINDOW_HEIGHT / viewport_h;
-        } else {
-            mouse->x = -1;
-            mouse->y = -1;
-        }
+    if (actual_x >= viewport_x && actual_x < viewport_x + viewport_w &&
+        actual_y >= viewport_y && actual_y < viewport_y + viewport_h) {
+        mouse->x = (actual_x - viewport_x) * WINDOW_WIDTH / viewport_w;
+        mouse->y = (actual_y - viewport_y) * WINDOW_HEIGHT / viewport_h;
+    }
+    else {
+        mouse->x = -1;
+        mouse->y = -1;
+    }
 
 
 }
@@ -102,7 +103,7 @@ void get_mouse_logical_position(V2f32* mouse){
 void draw_mouse_colisions() {
 
 
-    V2f32 mouse_pos; 
+    V2f32 mouse_pos;
     get_mouse_logical_position(&mouse_pos);
     LinkedListIter rock_iter;
     Entity* entity_rock = NULL;

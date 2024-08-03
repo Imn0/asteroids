@@ -28,14 +28,14 @@ NetworkState network_state;
 f32 delta_time;
 
 // TODO:
-// ufo
-// network - host packet types
+// player burst, shield
 // player collison death
-// points
-// rock spawning
+// ufo
 // menu
+// network - host packet types
 
 i32 main(i32 argc, char* argv[]) {
+    srand(time(NULL));
 
 
 #if  defined(_WIN32) && defined(DEBUG_ENABLED) 

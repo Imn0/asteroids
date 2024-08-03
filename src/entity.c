@@ -1,23 +1,31 @@
 #include "entity.h"
 #include "game.h"
+#include "events.h"
+#include "netcode.h"
+#include "animation.h"
 
-Entity* entity_create_rock(struct entity_create_rock_args args) {
+Entity* entity_create_rock(EntityCreateRockArgs args) {
 
     Entity* entity = malloc(sizeof(Entity));
+    entity->type = ENTITY_ROCK;
 
     EntityRock* e = &entity->data.rock;
     *e = (EntityRock){ 0 };
     e->angle_deg = 0.0f;
     e->num_vertices = args.num_vertices;
     e->common.position = args.position;
-    e->common.velocity = args.velocity;
+    e->common.velocity = args.initial_velocity;
 
     u8 rng_idx = args.seed;
 
-    // TODO THIS vvv
-    e->rotation_speed = ASTEROID_MAX_ROTATION_SPEED;
+    i32 sign = rand_i32_seed(0, 1, rng_idx) == 1 ? 1 : -1;
+
+    e->rotation_speed = sign * (ASTEROID_MAX_ROTATION_SPEED - rand_float_seed(-7.0f, 0.0f, rng_idx));
     e->rock_size = args.rock_size;
     e->base_radius = rock_sizes[args.rock_size];
+
+    ASSERT(args.id != 0, "invaild or no id was given %d\n", args.id);
+    e->common.id = args.id;
 
     for (i32 i = 0; i < args.num_vertices; i++) {
         f32 angle = (f32)i / args.num_vertices * TAU;
@@ -29,31 +37,33 @@ Entity* entity_create_rock(struct entity_create_rock_args args) {
         rng_idx += 1;
     }
 
-    entity->type = ENTITY_ROCK;
     return entity;
 }
 
-Entity* entity_create_bullet(V2f32 position, V2f32 initial_velocity,
-                             f32 angle_deg) {
+Entity* entity_create_bullet(EntityCreateBulletArgs args) {
 
     Entity* entity = malloc(sizeof(Entity));
+    entity->type = ENTITY_BULLET;
 
     EntityBullet* e = &entity->data.bullet;
     *e = (EntityBullet){ 0 };
-    e->common.position = position;
-    e->last_position = position;
+
+    ASSERT(args.id != 0, "invaild or no id was given %d\n", args.id);
+    e->common.id = args.id;
+
+    e->common.position = args.position;
+    e->last_position = args.position;
     e->common.velocity.x =
-        sinf(deg_to_rad(angle_deg)) * BULLET_SPEED + initial_velocity.x;
+        sinf(deg_to_rad(args.angle_deg)) * BULLET_SPEED + args.initial_velocity.x;
     e->common.velocity.y =
-        -cosf(deg_to_rad(angle_deg)) * BULLET_SPEED + initial_velocity.y;
+        -cosf(deg_to_rad(args.angle_deg)) * BULLET_SPEED + args.initial_velocity.y;
     e->ttl = BULLET_INITIAL_TTL;
-    entity->type = ENTITY_BULLET;
+    e->bullet_origin = args.bullet_origin;
 
     return entity;
 }
 
 void rock_update(EntityRock* rock) {
-
     rock->common.position.x += rock->common.velocity.x * delta_time;
     rock->common.position.y += rock->common.velocity.y * delta_time;
 
@@ -110,23 +120,8 @@ void bullet_update(EntityBullet* bullet) {
     }
 }
 
-void bullet_render(EntityBullet* bullet) {
-    SDL_SetRenderDrawColor(state.renderer, 255, 255, 255, 255);
-
-    // Define the rectangle with the center at (cx, cy)
-    SDL_Rect rect;
-    rect.w = 7;
-    rect.h = 7;
-    rect.x = (i32)bullet->common.position.x - rect.w / 2;
-    rect.y = (i32)bullet->common.position.y - rect.h / 2;
-
-    // Draw the rectangle
-    SDL_RenderFillRect(state.renderer, &rect);
-    SDL_SetRenderDrawColor(state.renderer, 0, 0, 0, 0);
-}
 
 void rock_render(EntityRock* rock) {
-    SDL_SetRenderDrawColor(state.renderer, 255, 255, 255, 255);
 
     for (i32 i = 0; i < rock->num_vertices; i++) {
         i32 next = (i + 1) % rock->num_vertices;
@@ -159,7 +154,24 @@ void rock_render(EntityRock* rock) {
                 (i32)rotatedNext.y + rock->phantom.position.y, LINE_THICKNESS, (SDL_Color) { .r = 255, .g = 255, .b = 255, .a = 255 });
         }
     }
+}
 
+void bullet_render(EntityBullet* bullet) {
+    SDL_SetRenderDrawColor(state.renderer, 255, 255, 255, 255);
+    if (bullet->bullet_origin == BULLET_REMOTE) {
+        SDL_SetRenderDrawColor(state.renderer, 128, 255, 128, 255);
+    }
+    else if (bullet->bullet_origin == BULLET_UFO) {
+        SDL_SetRenderDrawColor(state.renderer, 255, 64, 64, 255);
+    }
+
+    SDL_Rect rect = {
+        .w = 7,
+        .h = 7,
+        .x = (i32)bullet->common.position.x - rect.w / 2,
+        .y = (i32)bullet->common.position.y - rect.h / 2 };
+
+    SDL_RenderFillRect(state.renderer, &rect);
     SDL_SetRenderDrawColor(state.renderer, 0, 0, 0, 0);
 }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.h"
+#include "entity.h"
 
 #define PLAYER_SCALE 0.66f
 #define PLAYER_SIZE 64 * 0.66f
@@ -39,6 +40,8 @@ typedef struct {
     player_flags_ex_t ex_flags;
     f32 shoot_timer;
     f32 bloop_timer;
+    u32 score;
+    u8 lives;
     struct {
         bool phantom_enabled;
         V2f32 position;
@@ -49,6 +52,10 @@ extern Player remote_player;
 extern Player local_player;
 
 void player_init(Player* player);
-void player_process_input(Player* player);
-void player_update(Player* player);
+void player_process_input(Player* player, bool shoot);
+i32 player_add_score_rock_kill(Player* player, RockSize rock_size);
+void player_render_score(Player* player, bool bool_is_remote);
+
+void player_update(Player* player, bool bool_is_remote);
+
 void player_render(Player* player, SDL_Color color);

@@ -5,16 +5,38 @@ typedef enum { ENTITY_BULLET, ENTITY_ROCK } EntityType;
 
 typedef struct {
     V2f32 position, velocity;
-    struct {
+    struct flags_entity_t {
         u32 remove : 1;
     } flags;
+    i32 id;
 } EntityCommon;
+
+
+// Bullet 
+
+typedef enum {
+    BULLET_LOCAL,
+    BULLET_REMOTE,
+    BULLET_UFO,
+} BulletOrigin;
+
+typedef struct {
+    V2f32 position, initial_velocity;
+    f32 angle_deg;
+    BulletOrigin bullet_origin;
+    i32 id;
+} EntityCreateBulletArgs;
 
 typedef struct {
     EntityCommon common;
     f32 ttl;
     V2f32 last_position;
+    BulletOrigin bullet_origin;
+    
 } EntityBullet;
+
+
+// Rock
 
 typedef enum {
     ROCK_SMALL = 0,
@@ -22,13 +44,14 @@ typedef enum {
     ROCK_BIG
 } RockSize;
 
-struct entity_create_rock_args {
-    V2f32 position, velocity;
+typedef struct {
+    V2f32 position, initial_velocity;
     i32 num_vertices;
     f32 jaggedness;
     RockSize rock_size;
     u8 seed;
-};
+    i32 id;
+} EntityCreateRockArgs;
 
 static f32 rock_sizes[] = {
     [ROCK_SMALL] = 45.0f,
@@ -49,6 +72,9 @@ typedef struct {
     RockSize rock_size;
 } EntityRock;
 
+// UFO
+
+
 typedef struct {
     EntityType type;
     union {
@@ -58,12 +84,14 @@ typedef struct {
     } data;
 } Entity;
 
-Entity* entity_create_rock(struct entity_create_rock_args args);
-Entity* entity_create_bullet(V2f32 position, V2f32 initial_velocity,
-                             f32 angle_deg);
+
+
+
+Entity* entity_create_rock(EntityCreateRockArgs args);
+Entity* entity_create_bullet(EntityCreateBulletArgs args);
+
 extern void entity_update(Entity* entity);
 extern void entity_render(Entity* entity);
 
 bool entity_check_collision_point(Entity* entity1, V2f32 point);
-bool entity_check_collision_line(Entity* entity, V2f32 point1,
-                                 V2f32 point2);
+bool entity_check_collision_line(Entity* entity, V2f32 point1, V2f32 point2);

@@ -62,10 +62,9 @@ f32 rand_float_range(i32 num_ranges, ...);
 f32 rand_float_range_seed(u8 seed, i32 num_ranges, ...);
 
 static inline f32 deg_to_rad(f32 d) { return d * (PI / 180.0f); }
-static inline f32 dot(V2f32 v0, V2f32 v1) {
-    return (v0.x * v1.x) + (v0.y * v1.y);
-}
+static inline f32 dot(V2f32 v0, V2f32 v1) { return (v0.x * v1.x) + (v0.y * v1.y); }
 static inline f32 length(V2f32 vl) { return sqrtf(dot(vl, vl)); }
+static inline f32 dist(V2f32 v0, V2f32 v1) { return length((V2f32) { .x = v1.x - v0.x, .y = v1.y - v0.y }); }
 static inline f32 rad_to_deg(f32 d) { return d * (180.0f / PI); }
 static inline V2f32 rotate_point(V2f32 point, V2f32 center, f32 angle_rad) {
     f32 s = sinf(angle_rad);

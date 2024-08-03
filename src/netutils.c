@@ -17,6 +17,8 @@ Packet* packet_from_player(Player* player) {
         .y = player->position.y,
     };
     packet->payload.player_packet.flags = player->flags;
+    packet->payload.player_packet.lives = player->lives;
+    packet->payload.player_packet.score = player->score;
 
     return packet;
 }
@@ -35,21 +37,3 @@ Packet* packet_from_event(Event* event) {
     return packet;
 }
 
-void update_player_from_queue(Queue* queue, Player* player) {
-    Packet* p = NULL;
-    while (queue_dequeue(queue, (void*)&p)) {
-    }
-
-    if (p == NULL) {
-        return;
-    }
-
-    PlayerPacket packet = p->payload.player_packet;
-    player->angle_deg = packet.angle;
-    player->position.x = packet.x;
-    player->position.y = packet.y;
-
-    player->velocity.x = packet.v_x;
-    player->velocity.y = packet.v_y;
-    free(p);
-}

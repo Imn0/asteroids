@@ -18,6 +18,8 @@ typedef enum PacketType { PACKET_PLAYER, PACKET_EVENT } PacketType;
 typedef struct {
     f32 x, y, angle, v_x, v_y;
     player_flags_t flags;
+    i32 score;
+    i32 lives;
 } PlayerPacket;
 
 typedef struct {
@@ -77,4 +79,3 @@ void network_consumer_init();
 Packet* packet_from_player(Player* player);
 Packet* packet_from_event(Event* event);
 
-void update_player_from_queue(Queue* queue, Player* player);

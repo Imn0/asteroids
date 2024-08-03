@@ -54,8 +54,8 @@ f32 rand_float_range_seed(u8 seed, i32 num_ranges, ...) {
     f32 start[num_ranges];
     f32 end[num_ranges];
     for (int i = 0; i < num_ranges; i++) {
-        start[i] = (f32)va_arg(args, f32);
-        end[i] = (f32)va_arg(args, f32);
+        start[i] = (f32)va_arg(args, f64);
+        end[i] = (f32)va_arg(args, f64);
         total_length += end[i] - start[i];
     }
 

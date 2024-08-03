@@ -1,10 +1,13 @@
 #include <SDL.h>
 
 #include "game.h"
+#include "events.h"
 #include "netcode.h"
 #include "physics.h"
 #include "player.h"
 #include "sfx.h"
+
+void player_render_impl(f32 angle_deg, V2f32 position, SDL_Color color);
 
 void player_init(Player* player) {
     player->position = (V2f32){ .x = WINDOW_WIDTH / 2, .y = WINDOW_HEIGHT / 2 };
@@ -13,6 +16,8 @@ void player_init(Player* player) {
     player->flags = (player_flags_t){ 0 };
     player->shoot_timer = 0.0f;
     player->bloop_timer = PLAYER_BOOP_OFF_TIME;
+    player->score = 0;
+    player->lives = 3;
 }
 
 //engine effects
@@ -32,38 +37,45 @@ void player_boop(Player* player) {
 }
 
 
-// TODO better shooting logic, max 4 bullets at a time, burst mode
-
+// TODO burst mode
 void player_shoot(Player* player) {
     if (player->shoot_timer > 0.0f) { return; }
 
     player->shoot_timer = PLAYER_SHOOT_COOLDOWN;
 
     player->velocity.x -= sinf(deg_to_rad(player->angle_deg)) *
-            PLAYER_ACCELERATION_SPEED * 0.09f;
-        player->velocity.y += cosf(deg_to_rad(player->angle_deg)) *
-            PLAYER_ACCELERATION_SPEED * 0.09f;
+        PLAYER_ACCELERATION_SPEED * 0.09f;
+    player->velocity.y += cosf(deg_to_rad(player->angle_deg)) *
+        PLAYER_ACCELERATION_SPEED * 0.09f;
 
 
-    // create local event
+// create local event
     Event* e = malloc(sizeof(Event));
     e->type = EVENT_TYPE_SHOOT;
-    e->event.shoot = (EventShoot){ .position = player->position,
-                                  .angle_deg = player->angle_deg,
-                                  .initial_velocity = player->velocity };
-    queue_enqueue(&state.event_queue, e);
-    play_sound(SFX_SHOOT);
 
-    if (!network_state.online_disable) {
-        Packet* p = packet_from_event(e);
-        if (e == NULL) {
-            return;
-        }
-        queue_enqueue(&network_state.transmit.tx_queue, (void*)p);
-    }
+    i32 id = rand() + 1;
+
+    e->event.shoot = (EventShoot){
+                                .position = player->position,
+                                .angle_deg = player->angle_deg,
+                                .initial_velocity = player->velocity,
+                                .bullet_origin = BULLET_LOCAL,
+                                .id = id };
+    register_event_local(e);
+    Event* e_for_remote = malloc(sizeof(Event));
+    e_for_remote->type = EVENT_TYPE_SHOOT;
+    e_for_remote->event.shoot = (EventShoot){
+                                .position = player->position,
+                                .angle_deg = player->angle_deg,
+                                .initial_velocity = player->velocity,
+                                .bullet_origin = BULLET_REMOTE,
+                                .id = id };
+
+    register_event_remote(e_for_remote);
+    play_sound(SFX_SHOOT);
 }
 
-void player_process_input(Player* player) {
+void player_process_input(Player* player, bool shoot) {
 
     player->flags = (player_flags_t){ .invisible = player->flags.invisible };
     // rotate left
@@ -80,12 +92,67 @@ void player_process_input(Player* player) {
     if (state.keystate[SDL_SCANCODE_UP]) {
         player->flags.accelerate = 1;
     }
-    if (state.keystate[SDL_SCANCODE_SPACE]) {
+
+    if (shoot) {
         player_shoot(player);
     }
+
+    // if (state.keystate[SDL_SCANCODE_SPACE]) {
+    // }
 }
 
-void player_update(Player* player) {
+i32 player_add_score_rock_kill(Player* player, RockSize rock_size) {
+    u32 additional_score;
+    switch (rock_size) {
+    case ROCK_BIG:
+        additional_score = BIG_ROCK_KILL_POINTS;
+        break;
+    case ROCK_MEDIUM:
+        additional_score = MEDIUM_ROCK_KILL_POINTS;
+        break;
+    case ROCK_SMALL:
+        additional_score = SMALL_ROCK_KILL_POINTS;
+        break;
+    }
+    player->score += additional_score;
+    return additional_score;
+}
+
+void player_render_score(Player* player, bool is_remote) {
+    f32 y = 0.0f;
+
+    // points 
+    SDL_Color color = { 255, 255, 255, 255 };
+
+    if (is_remote) {
+        y = 120.0f;
+        color = (SDL_Color){ .r = 128, .g = 255, .b = 128, .a = 255 };
+    }
+
+    char score[64];
+    snprintf(score, sizeof(score), "%d", player->score);
+    SDL_Surface* score_surface = TTF_RenderText_Solid(state.big_font, score, color);
+    SDL_Rect score_rect = { 20, y, score_surface->w, score_surface->h };
+
+    SDL_Texture* score_texture = SDL_CreateTextureFromSurface(state.renderer, score_surface);
+    SDL_RenderCopy(state.renderer, score_texture, NULL, &score_rect);
+
+    SDL_FreeSurface(score_surface);
+    SDL_DestroyTexture(score_texture);
+
+    // lives 
+    y += 96.0f;
+    float x = 0.0f;
+    for (i32 i = 0; i < player->lives; i++) {
+        x += 40.0f;
+        player_render_impl(0.0f, (V2f32) { x, y }, color);
+    }
+
+
+
+}
+
+void player_update(Player* player, bool bool_is_remote) {
     if (player->shoot_timer > 0.0f) {
         player->shoot_timer -= delta_time;
     }
@@ -169,37 +236,10 @@ void player_render(Player* player, SDL_Color color) {
     if (player->flags.invisible) {
         return;
     }
-
-    for (i32 i = 0; i < PLAYER_SEGMENTS_SIZE; i++) {
-        V2f32 start_point = rotate_point(player_segments[i][0], (V2f32) { 0, 0 },
-                                         deg_to_rad(player->angle_deg));
-        V2f32 end_point = rotate_point(player_segments[i][1], (V2f32) { 0, 0 },
-                                       deg_to_rad(player->angle_deg));
-
-        gfx_render_thick_line(
-            state.renderer, (i32)start_point.x + player->position.x,
-            (i32)start_point.y + player->position.y,
-            (i32)end_point.x + player->position.x,
-            (i32)end_point.y + player->position.y, LINE_THICKNESS, color);
-    }
+    player_render_impl(player->angle_deg, player->position, color);
 
     if (player->phantom_player.phantom_enabled) {
-
-        for (i32 i = 0; i < PLAYER_SEGMENTS_SIZE; i++) {
-            V2f32 start_point =
-                rotate_point(player_segments[i][0], (V2f32) { 0, 0 },
-                             deg_to_rad(player->angle_deg));
-            V2f32 end_point = rotate_point(player_segments[i][1], (V2f32) { 0, 0 },
-                                           deg_to_rad(player->angle_deg));
-
-            gfx_render_thick_line(
-                state.renderer,
-                (i32)start_point.x + player->phantom_player.position.x,
-                (i32)start_point.y + player->phantom_player.position.y,
-                (i32)end_point.x + player->phantom_player.position.x,
-                (i32)end_point.y + player->phantom_player.position.y,
-                LINE_THICKNESS, color);
-        }
+        player_render_impl(player->angle_deg, player->phantom_player.position, color);
     }
 
     if (player->ex_flags.boop) {
@@ -217,5 +257,21 @@ void player_render(Player* player, SDL_Color color) {
                 (i32)end_point.x + player->position.x,
                 (i32)end_point.y + player->position.y, LINE_THICKNESS, color);
         }
+    }
+}
+
+
+
+void player_render_impl(f32 angle_deg, V2f32 position, SDL_Color color) {
+    for (i32 i = 0; i < PLAYER_SEGMENTS_SIZE; i++) {
+        V2f32 start_point = rotate_point(player_segments[i][0], (V2f32) { 0, 0 },
+                                         deg_to_rad(angle_deg));
+        V2f32 end_point = rotate_point(player_segments[i][1], (V2f32) { 0, 0 },
+                                       deg_to_rad(angle_deg));
+        gfx_render_thick_line(
+            state.renderer, (i32)start_point.x + position.x,
+            (i32)start_point.y + position.y,
+            (i32)end_point.x + position.x,
+            (i32)end_point.y + position.y, LINE_THICKNESS, color);
     }
 }

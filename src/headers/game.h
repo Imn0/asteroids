@@ -13,6 +13,7 @@ typedef struct {
         i32 size;
     } textures;
     TTF_Font* font;
+    TTF_Font* big_font;
     TTF_Font* small_font;
     const u8* keystate;
 
@@ -22,6 +23,7 @@ typedef struct {
     LinkedList entities;
     LinkedList animations;
     f32 new_rock_timer;
+    
 } State;
 
 extern f32 delta_time;

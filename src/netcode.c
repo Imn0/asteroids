@@ -28,8 +28,10 @@
 
 #include "common.h"
 #include "netcode.h"
+#include "events.h"
 
 i32 network_consumer(void* args) {
+    (void)args;
     Packet* p = NULL;
     while (network_state.running) {
         while (queue_dequeue(&network_state.receive.rx_queue, (void*)&p) ==
@@ -42,14 +44,14 @@ i32 network_consumer(void* args) {
             {
                 PlayerPacket packet = p->payload.player_packet;
                 mtx_lock(&network_state.remote_player_state.mutex);
-                network_state.remote_player_state.player_state.angle =
-                    packet.angle;
+                network_state.remote_player_state.player_state.angle = packet.angle;
                 network_state.remote_player_state.player_state.x = packet.x;
                 network_state.remote_player_state.player_state.y = packet.y;
                 network_state.remote_player_state.player_state.v_x = packet.v_x;
                 network_state.remote_player_state.player_state.v_y = packet.v_y;
-                network_state.remote_player_state.player_state.flags =
-                    packet.flags;
+                network_state.remote_player_state.player_state.flags = packet.flags;
+                network_state.remote_player_state.player_state.lives = packet.lives;
+                network_state.remote_player_state.player_state.score = packet.score;
                 mtx_unlock(&network_state.remote_player_state.mutex);
                 break;
             }
@@ -57,7 +59,7 @@ i32 network_consumer(void* args) {
             {
                 Event* e = malloc(sizeof(Event));
                 *e = p->payload.event_packet.event;
-                queue_enqueue(&state.event_queue, e);
+                register_event_local(e);
                 break;
             }
             }

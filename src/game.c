@@ -58,6 +58,8 @@ void game_init() {
     ll_init(&state.entities);
     ll_init(&state.animations);
     queue_init(&state.event_queue, 64);
+
+
     state.new_rock_timer = 3.0f;
 }
 
@@ -68,7 +70,8 @@ void game_load_assets() {
     snprintf(font_path, sizeof(font_path), "%s/../assets/fonts/Montserrat-Regular.ttf", exe_path);
 
     ASSERT(TTF_Init() == 0, "TTF failed to initialize");
-    state.font = TTF_OpenFont(font_path, 24);
+    state.font = TTF_OpenFont(font_path, 32);
+    state.big_font = TTF_OpenFont(font_path, 56);
     state.small_font = TTF_OpenFont(font_path, 12);
     ASSERT((state.font != NULL), "failed to load font");
     state.textures.size = 0;
@@ -79,6 +82,7 @@ void game_load_assets() {
 
 void game_get_input() {
     SDL_Event ev;
+    bool shoot_key_down = false;
     while (SDL_PollEvent(&ev)) {
         switch (ev.type) {
         case SDL_QUIT:
@@ -86,6 +90,10 @@ void game_get_input() {
             break;
         case SDL_KEYDOWN:
             switch (ev.key.keysym.sym) {
+            case SDLK_SPACE:
+                if (ev.key.repeat == 0)
+                    shoot_key_down = true;
+                break;
 #ifdef DEBUG_ENABLED
             case SDLK_F1:
             {
@@ -114,7 +122,7 @@ void game_get_input() {
         }
     }
     state.keystate = SDL_GetKeyboardState(NULL);
-    player_process_input(&local_player);
+    player_process_input(&local_player, shoot_key_down);
 }
 
 void game_process() {
@@ -131,8 +139,8 @@ void game_process() {
     }
     // TODO UFO
 
-    player_update(&local_player);
-    player_update(&remote_player);
+    player_update(&local_player, false);
+    player_update(&remote_player, true);
 
     Event* e = NULL;
     funct_ret_t ret;
@@ -140,112 +148,63 @@ void game_process() {
         switch (e->type) {
         case EVENT_TYPE_SHOOT:
         {
-            Entity* bullet = entity_create_bullet(
-                e->event.shoot.position, e->event.shoot.initial_velocity,
-                e->event.shoot.angle_deg);
+            Entity* bullet = create_bullet_from_event(e);
             ret = ll_push_back(&state.entities, bullet);
             break;
         }
         case EVENT_TYPE_NEW_ROCK:
         {
-            Entity* rock = entity_create_rock((struct entity_create_rock_args) {
-                .rock_size = e->event.rock.rock_size,
-                    .jaggedness = e->event.rock.jaggedness,
-                    .num_vertices = e->event.rock.num_vertices,
-                    .position = e->event.rock.position,
-                    .velocity = e->event.rock.initial_velocity,
-                    .seed = e->event.rock.seed
-            });
+            Entity* rock = create_rock_from_event(e);
             ret = ll_push_front(&state.entities, rock);
             break;
         }
+        case EVENT_PLAYER_DEATH:
+        {
+            Animation* a = create_player_death_animation(
+                e->event.player_death.position, e->event.player_death.velocity,
+                e->event.player_death.angle_deg);
+
+            ll_push_back(&state.animations, a);
+
+            break;
+        }
+        case EVENT_REMOVE_ENTITY:
+        {
+            ASSERT(!network_state.is_server, "server was comamnded to remvoe entity");
+
+            LinkedListIter iter;
+            ll_iter_assign(&iter, &state.entities);
+            while (!ll_iter_end(&iter)) {
+                Entity* entity = ll_iter_peek(&iter);
+                if (entity->data.common.id == e->event.remove_entity.id_to_remove) {
+                    entity->data.common.flags.remove = 1;
+
+                    if (e->event.remove_entity.animation == SPARKLE) {
+                        Animation* a = create_sprinkle_animation(
+                            entity->data.common.position, rand_i32(10, 20),
+                            rand_i32(0, 255));
+                    ll_push_back(&state.animations, a);
+
+                    }
+
+                }
+                ll_iter_next(&iter);
+            }
+            break;
+        }
+        case EVENT_PLAYER_ADD_POINTS:
+        {
+            ASSERT(!network_state.is_server, "server was comamnded to add points to itself");
+            local_player.score += e->event.add_points.points_to_add;
+            break;
+        }
+
         }
         ASSERT(ret == 0, "game process : %d error\n", ret);
         free(e);
     }
 
-    // collisions
-    LinkedListIter bullet_iter;
-    LinkedListIter rock_iter;
-    Entity* entity_rock = NULL;
-    Entity* entity_bullet = NULL;
-    ll_iter_assign_direction(&bullet_iter, &state.entities, LL_ITER_T_TO_H);
-    while (!ll_iter_end(&bullet_iter)) {
-        entity_bullet = ll_iter_peek(&bullet_iter);
-        if (entity_bullet->type != ENTITY_BULLET) {
-            break;
-        }
-
-        ll_iter_assign_direction(&rock_iter, &state.entities, LL_ITER_H_TO_T);
-        while (!ll_iter_end(&rock_iter)) {
-            entity_rock = ll_iter_peek(&rock_iter);
-            if (entity_rock->type != ENTITY_ROCK) {
-                break;
-            }
-
-            bool colision = entity_check_collision_line(
-                ll_iter_peek(&rock_iter),
-                entity_bullet->data.bullet.common.position,
-                entity_bullet->data.bullet.last_position);
-
-            if (colision) {
-                Animation* a = create_sprinkle_animation(
-                    entity_bullet->data.common.position, rand_i32(10, 20),
-                    rand_i32(0, 255));
-
-                // TODO add points 
-                if (network_state.is_server) {
-                    add_event_from_rock_kill(
-                        entity_rock->data.rock.rock_size, entity_rock->data.rock.common.position, entity_rock->data.rock.common.velocity);
-                }
-                play_sound(sfx_rock[entity_rock->data.rock.rock_size]);
-                ll_push_back(&state.animations, a);
-                ll_iter_remove_at(&state.entities, &bullet_iter);
-                ll_iter_remove_at(&state.entities, &rock_iter);
-                break;
-            }
-
-            ll_iter_next(&rock_iter);
-        }
-        ll_iter_next(&bullet_iter);
-    }
-
-    // player collision
-    // TODO 
-    // ? move to player?
-    // TODO add event for this 
-    ll_iter_assign_direction(&rock_iter, &state.entities, LL_ITER_H_TO_T);
-    bool player_colision = false;
-    while (!ll_iter_end(&rock_iter)) {
-        entity_rock = ll_iter_peek(&rock_iter);
-        if (entity_rock->type != ENTITY_ROCK) {
-            break;
-        }
-        player_colision = entity_check_collision_point(entity_rock, local_player.position);
-        if (player_colision) break;
-        ll_iter_next(&rock_iter);
-
-    }
-
-
-    if (player_colision) {
-
-        // TODO add event and respawn logic  
-        Animation* a = create_player_death_animation(
-            local_player.position, local_player.velocity,
-            local_player.angle_deg);
-        ll_push_back(&state.animations, a);
-        local_player.position = (V2f32){
-            .x = WINDOW_WIDTH / 2,
-            .y = WINDOW_HEIGHT / 2,
-        };
-        local_player.velocity = (V2f32){ 0 };
-    }
-
-
-
-
-// physics
+    // physics
     LinkedListIter iter;
     ll_iter_assign(&iter, &state.entities);
     while (!ll_iter_end(&iter)) {
@@ -266,6 +225,130 @@ void game_process() {
         }
         ll_iter_next(&iter);
     }
+
+    // ? handle player deaths locally ?
+    // all collisions, checked only on server 
+    if (!network_state.is_server) {
+        return;
+    }
+
+    // bullet - rock and bulelt - ufo 
+    LinkedListIter bullet_iter;
+    LinkedListIter rock_iter;
+    Entity* entity = NULL;
+    Entity* entity_bullet = NULL;
+    ll_iter_assign_direction(&bullet_iter, &state.entities, LL_ITER_T_TO_H);
+    while (!ll_iter_end(&bullet_iter)) {
+        entity_bullet = ll_iter_peek(&bullet_iter);
+        if (entity_bullet->type != ENTITY_BULLET) {
+            break;
+        }
+
+        ll_iter_assign_direction(&rock_iter, &state.entities, LL_ITER_H_TO_T);
+        while (!ll_iter_end(&rock_iter)) {
+            entity = ll_iter_peek(&rock_iter);
+            if (entity->type == ENTITY_BULLET) {
+                break;
+            }
+
+            if (entity->type == ENTITY_ROCK) {
+                // bullet - rock 
+
+                bool colision = entity_check_collision_line(
+                    ll_iter_peek(&rock_iter),
+                    entity_bullet->data.bullet.common.position,
+                    entity_bullet->data.bullet.last_position);
+
+                if (colision) {
+                    Animation* a = create_sprinkle_animation(
+                        entity_bullet->data.common.position, rand_i32(10, 20),
+                        rand_i32(0, 255));
+
+                    if (network_state.is_server) {
+                        add_event_from_rock_kill(
+                            entity->data.rock.rock_size, entity->data.rock.common.position, entity->data.rock.common.velocity);
+                    }
+                    play_sound(sfx_rock[entity->data.rock.rock_size]);
+                    ll_push_back(&state.animations, a);
+
+                    if (entity_bullet->data.bullet.bullet_origin == BULLET_LOCAL) {
+                        player_add_score_rock_kill(&local_player, entity->data.rock.rock_size);
+                    }
+
+                    if (entity_bullet->data.bullet.bullet_origin == BULLET_REMOTE) {
+                        i32 points_to_add = player_add_score_rock_kill(&remote_player, entity->data.rock.rock_size);
+                        remote_add_points(points_to_add);
+                    }
+
+                    entity_bullet->data.bullet.common.flags.remove = 1;
+                    remote_kill_entity(entity_bullet->data.common.id, NONE);
+
+                    entity->data.common.flags.remove = 1;
+                    remote_kill_entity(entity->data.common.id, SPARKLE);
+
+
+                    break;
+                }
+            }
+           
+            ll_iter_next(&rock_iter);
+        }
+        ll_iter_next(&bullet_iter);
+    }
+
+
+    // TODO handle this locally 
+    // player collision
+    LinkedListIter list_iter;
+    ll_iter_assign_direction(&list_iter, &state.entities, LL_ITER_H_TO_T);
+    bool local_player_colision = false;
+    bool remote_player_colision = false;
+    while (!ll_iter_end(&list_iter)) {
+        Entity* e = ll_iter_peek(&list_iter);
+
+
+        // player - rock 
+        if (e->type == ENTITY_ROCK) {
+
+            // TODO actual collision not the mid point
+            local_player_colision |= entity_check_collision_point(e, local_player.position);
+            remote_player_colision |= entity_check_collision_point(e, remote_player.position);
+        }
+
+        // player - ufo bullet 
+
+
+        // player - ufo (ramming)
+
+
+
+        ll_iter_next(&list_iter);
+
+    }
+
+
+    if (local_player_colision) {
+        Event* e = malloc(sizeof(Event));
+        e->type = EVENT_PLAYER_DEATH;
+        e->event.player_death.angle_deg = local_player.angle_deg;
+        e->event.player_death.position = local_player.position;
+        e->event.player_death.velocity = local_player.velocity;
+
+        register_event_local(e);
+        register_event_remote(e);
+    }
+
+
+    if (remote_player_colision) {
+        Event* e = malloc(sizeof(Event));
+        e->type = EVENT_PLAYER_DEATH;
+        e->event.player_death.angle_deg =remote_player.angle_deg;
+        e->event.player_death.position =remote_player.position;
+        e->event.player_death.velocity =remote_player.velocity;
+
+        register_event_local(e);
+        register_event_remote(e);
+    }
 }
 
 void game_update_remote() {
@@ -280,6 +363,9 @@ void game_update_remote() {
     remote_player.velocity.y =
         network_state.remote_player_state.player_state.v_y;
     remote_player.flags = network_state.remote_player_state.player_state.flags;
+    remote_player.score = network_state.remote_player_state.player_state.score;
+    remote_player.lives = network_state.remote_player_state.player_state.lives;
+
     mtx_unlock(&network_state.remote_player_state.mutex);
 
 
@@ -300,8 +386,12 @@ void game_render() {
 #endif
 
     // redner player
+    player_render_score(&local_player, false);
+    if (!network_state.online_disable) {
+        player_render_score(&remote_player, true);
+    }
     player_render(&local_player, (SDL_Color) { .r = 255, .g = 255, .b = 255, .a = 255 });
-    player_render(&remote_player, (SDL_Color) { .r = 255, .g = 128, .b = 128, .a = 255 });
+    player_render(&remote_player, (SDL_Color) { .r = 128, .g = 255, .b = 128, .a = 255 });
 
 
     SDL_SetRenderDrawColor(state.renderer, 0, 0, 0, 0);
