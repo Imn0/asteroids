@@ -243,3 +243,31 @@ void draw_graph(SDL_Surface* surface, f64* times, Uint32 color, int graph_index,
         SDL_FillRect(surface, &line_rect, color);
     }
 }
+
+void debug_log_death(V2f32 player_pos, Entity* entity) {
+
+    printf("Player was killed at %f, %f", player_pos.x, player_pos.y);
+    printf(" by %d\n", entity->type);
+    printf("which was at %f, %f\n", entity->data.common.position.x, entity->data.common.position.y);
+
+    if (entity->type == ENTITY_ROCK) {
+        printf("phantom is %d", entity->data.rock.phantom.phantom_enabled);
+        if (entity->data.rock.phantom.phantom_enabled) {
+            printf("at %f, %f \n", entity->data.rock.phantom.position.x, entity->data.rock.phantom.position.y);
+        }
+        else {
+            printf("\n");
+        }
+
+        printf("rotation : %f\npoints:\n", entity->data.rock.angle_deg);
+        for (i32 i = 0; i < entity->data.rock.num_vertices; i++) {
+            printf("%d: %f %f\n", i, entity->data.rock.vertices[i].x, entity->data.rock.vertices[i].y);
+        }
+
+    }
+    else if (entity->type == ENTITY_BULLET) {
+        // nothing ig?
+    }
+
+
+}

@@ -9,6 +9,8 @@
 #define BANG_MEDIUM_SOUND_NAME "bang_medium.wav"
 #define BANG_SMALL_SOUND_NAME "bang_small.wav"
 #define THRUST_SOUND_NAME "thrust.wav"
+#define DEATH_SOUND_NAME "death.wav"
+#define EXTRA_LIFE_NAME "death.wav"
 
 Mix_Chunk* _sounds[SOUNDS_NUM];
 
@@ -45,6 +47,15 @@ void init_sound() {
     snprintf(sound_path_buff, sizeof(sound_path_buff), "%s%s", sounds_path, THRUST_SOUND_NAME);
     _sounds[SFX_THRUST] = Mix_LoadWAV(sound_path_buff);
     if (_sounds[SFX_THRUST] == NULL) { printf("error loading %s\n", THRUST_SOUND_NAME); }
+
+    snprintf(sound_path_buff, sizeof(sound_path_buff), "%s%s", sounds_path, DEATH_SOUND_NAME);
+    _sounds[SFX_DEATH] = Mix_LoadWAV(sound_path_buff);
+    if (_sounds[SFX_DEATH] == NULL) { printf("error loading %s\n", DEATH_SOUND_NAME); }
+
+
+    snprintf(sound_path_buff, sizeof(sound_path_buff), "%s%s", sounds_path, EXTRA_LIFE_NAME);
+    _sounds[SFX_EXTRA_LIFE] = Mix_LoadWAV(sound_path_buff);
+    if (_sounds[SFX_EXTRA_LIFE] == NULL) { printf("error loading %s\n", EXTRA_LIFE_NAME); }
 
 
 }

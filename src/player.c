@@ -77,7 +77,9 @@ void player_shoot(Player* player) {
 
 void player_process_input(Player* player, bool shoot) {
 
-    player->flags = (player_flags_t){ .invisible = player->flags.invisible };
+    player->flags.rotate_left = 0;
+    player->flags.rotate_right = 0;
+    player->flags.accelerate = 0;
     // rotate left
     if (state.keystate[SDL_SCANCODE_LEFT]) {
         player->flags.rotate_left = 1;
@@ -88,6 +90,7 @@ void player_process_input(Player* player, bool shoot) {
         player->flags.rotate_right = 1;
         player->flags.rotate_left = 0;
     }
+
     // accelerate
     if (state.keystate[SDL_SCANCODE_UP]) {
         player->flags.accelerate = 1;
@@ -122,11 +125,11 @@ void player_render_score(Player* player, bool is_remote) {
     f32 y = 0.0f;
 
     // points 
-    SDL_Color color = { 255, 255, 255, 255 };
+    SDL_Color color = { LOCAL_PLAYER_COLOR, 255 };
 
     if (is_remote) {
         y = 120.0f;
-        color = (SDL_Color){ .r = 128, .g = 255, .b = 128, .a = 255 };
+        color = (SDL_Color){ REMOTE_PLAYER_COLOR, .a = 255 };
     }
 
     char score[64];
@@ -153,9 +156,48 @@ void player_render_score(Player* player, bool is_remote) {
 }
 
 void player_update(Player* player, bool bool_is_remote) {
+
+    if(player->flags.perma_dead == 1){
+        return;
+    }
+
     if (player->shoot_timer > 0.0f) {
         player->shoot_timer -= delta_time;
     }
+
+    if (player->invincibility_timer > 0.0f) {
+        f32 blip_time = 0.0f;
+        if (player->invincibility_timer > 2.5f) {
+            blip_time = 0.75f;
+        }
+        else if (player->invincibility_timer > 1.5f) {
+            blip_time = 0.55f;
+        }
+        else if (player->invincibility_timer > 1.0f) {
+            blip_time = 0.45f;
+        }
+        else if (player->invincibility_timer > 0.5f) {
+            blip_time = 0.35f;
+        }
+        else {
+            blip_time = 0.25f;
+        }
+
+        f32 x = fmodf(player->invincibility_timer, blip_time);
+        if (x > blip_time / 2) {
+            player->flags.invisible = 0;
+        }
+        else {
+            player->flags.invisible = 1;
+        }
+
+        player->invincibility_timer -= delta_time;
+    }
+    else {
+        player->flags.invisible = 0;
+        player->ex_flags.invincible = 0;
+    }
+
 
     // rotation
     i32 rotation = 0;

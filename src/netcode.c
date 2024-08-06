@@ -42,16 +42,9 @@ i32 network_consumer(void* args) {
             switch (p->type) {
             case PACKET_PLAYER:
             {
-                PlayerPacket packet = p->payload.player_packet;
+                PlayerPacket* packet = &p->payload.player_packet;
                 mtx_lock(&network_state.remote_player_state.mutex);
-                network_state.remote_player_state.player_state.angle = packet.angle;
-                network_state.remote_player_state.player_state.x = packet.x;
-                network_state.remote_player_state.player_state.y = packet.y;
-                network_state.remote_player_state.player_state.v_x = packet.v_x;
-                network_state.remote_player_state.player_state.v_y = packet.v_y;
-                network_state.remote_player_state.player_state.flags = packet.flags;
-                network_state.remote_player_state.player_state.lives = packet.lives;
-                network_state.remote_player_state.player_state.score = packet.score;
+                memcpy(&network_state.remote_player_state, packet, sizeof(PlayerPacket));
                 mtx_unlock(&network_state.remote_player_state.mutex);
                 break;
             }
@@ -60,6 +53,15 @@ i32 network_consumer(void* args) {
                 Event* e = malloc(sizeof(Event));
                 *e = p->payload.event_packet.event;
                 register_event_local(e);
+                break;
+            }
+            case PACKET_UFO:
+            {
+                UfoPacket* packet = &p->payload.ufo_packet;
+                mtx_lock(&network_state.ufo_state.mutex);
+                memcpy(&network_state.ufo_state, packet, sizeof(UfoPacket));
+                mtx_unlock(&network_state.ufo_state.mutex);
+
                 break;
             }
             }
@@ -88,6 +90,11 @@ func common_init() {
         return ERR_MTX_INIT;
     }
 
+    if (mtx_init(&network_state.ufo_state.mutex, mtx_plain) !=
+        thrd_success) {
+        return ERR_MTX_INIT;
+    }
+    
     queue_init(&network_state.receive.rx_queue, 64);
     queue_init(&network_state.transmit.tx_queue, 64);
     return OK;

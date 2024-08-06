@@ -1,5 +1,23 @@
 #include "netcode.h"
 
+Packet* packet_from_ufo(Ufo* ufo){
+    Packet* packet = malloc(sizeof(Packet));
+    if (packet == NULL) {
+        return NULL;
+    }
+
+    packet->type = PACKET_UFO;
+
+    packet->payload.ufo_packet.angle = ufo->angle_deg;
+    packet->payload.ufo_packet.current_form = ufo->form;
+    packet->payload.ufo_packet.x = ufo->position.x;
+    packet->payload.ufo_packet.y = ufo->position.y;
+    packet->payload.ufo_packet.v_x = ufo->velocity.x;
+    packet->payload.ufo_packet.v_y = ufo->velocity.y;
+
+    return packet;
+}
+
 Packet* packet_from_player(Player* player) {
     Packet* packet = malloc(sizeof(Packet));
     if (packet == NULL) {

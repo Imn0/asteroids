@@ -72,8 +72,6 @@ typedef struct {
     RockSize rock_size;
 } EntityRock;
 
-// UFO
-
 
 typedef struct {
     EntityType type;
@@ -83,9 +81,6 @@ typedef struct {
         EntityRock rock;
     } data;
 } Entity;
-
-
-
 
 Entity* entity_create_rock(EntityCreateRockArgs args);
 Entity* entity_create_bullet(EntityCreateBulletArgs args);

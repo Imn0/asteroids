@@ -4,7 +4,7 @@ project(asteroids C)
 set(CMAKE_C_STANDARD 11)
 
 if(NOT MSVC)
-    add_compile_options(-O2 -Wall -Wextra -Wpedantic -g -Wno-strict-prototypes)
+    add_compile_options(-O2 -Wall -Wextra -Wpedantic -g -Wno-strict-prototypes -Wno-gnu-statement-expression)
 endif()
 
 include_directories(src/headers src/common)

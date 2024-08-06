@@ -1,46 +1,16 @@
 #include "game.h"
 #include "events.h"
 #include "netcode.h"
+#include "animation.h"
 
-void add_event_starting_rocks() {
+V2f32 get_random_screen_edge_position() {
 
-    ASSERT(network_state.is_server, "client tried to add add starting rocks\n");
-
-
-    for (i32 i = 0; i < 7; i++) {
-        u8 seed = rand_i32(0, 255);
-
-        // ! functions to make events for spawning rocks 
-
-        Event* e = malloc(sizeof(Event));
-        e->type = EVENT_TYPE_NEW_ROCK;
-        EventRock* rock = &e->event.rock;
-        *rock = (EventRock){
-            .rock_size = rand_i32(1,2),
-            .jaggedness = rand_float(0.7f, 0.95f),
-            .num_vertices = rand_i32(8, ASTEROID_MAX_POINTS - 1),
-            .position = (V2f32){.x = rand_float_range(2, 0.0f, WINDOW_WIDTH / 2 - 50.0f, WINDOW_WIDTH / 2 + 50.0f, (f32)WINDOW_WIDTH),
-                                .y = rand_float_range(2, 0.0f, WINDOW_HEIGHT / 2 - 50.0f, WINDOW_HEIGHT / 2 + 50.0f, (f32)WINDOW_HEIGHT)},
-            .initial_velocity = (V2f32){.x = rand_float(-25.0f, 25.0f),
-                                        .y = rand_float(-25.0f, 25.0f)},
-            .seed = seed,
-            .id = rand() + 1 };
-
-        register_event_local(e);
-        register_event_remote(e);
-    }
-}
-
-void add_event_random_rock(RockSize size) {
-
-    ASSERT(network_state.is_server, "client tried to add a rock\n");
+    f32 min_dist = 200.0f;
+    i32 max_tries = 32;
+    i32 i = 0;
 
     f32 x = 0.0f;
     f32 y = 0.0f;
-
-    f32 min_dist = 250.0f;
-    i32 max_tries = 32;
-    i32 i = 0;
 
     do {
         i32 wall = rand_i32(0, 3);
@@ -68,8 +38,84 @@ void add_event_random_rock(RockSize size) {
             break;
         }
 
-
     } while (i++ < max_tries);
+    return (V2f32) { x, y };
+}
+
+void add_event_ufo(UfoForm form) {
+    Event* e = malloc(sizeof(Event));
+
+    e->type = EVENT_UFO_SPAWN;
+
+    // TODO generate position and everything here 
+    EventUfoSpawn* ufo = &e->event.ufo_spawn;
+    ufo->form = form;
+    ufo->position = get_random_screen_edge_position();
+    ufo->velocity = (V2f32){ .x = rand_float(-25.0f, 25.0f) * (form == UFO_SMALL ? 1.78 : 1),
+                             .y = rand_float(-25.0f, 25.0f) * (form == UFO_SMALL ? 1.78 : 1) };
+
+
+
+    register_event_local(e);
+    register_event_remote(e);
+}
+
+void make_ufo_from_event(Event* e, Ufo* ufo) {
+    // ASSERT(network_state.is_server, "Client tried to spawn ufo.\n");
+    ASSERT(e->type == EVENT_UFO_SPAWN, "Got event %d to make ufo from event.\n", e->type);
+
+    ufo->angle_deg = 0.0f; // ??
+
+    ufo->form = e->event.ufo_spawn.form;
+    ufo->position = e->event.ufo_spawn.position;
+    ufo->velocity = e->event.ufo_spawn.velocity;
+    ufo->ufo_timer = 0.0f;
+    ufo->shoot_timer = 0.0f;
+}
+
+Animation* make_animation_from_event(Event* e) {
+    // TODO
+
+    Animation* a = create_sprinkle_animation(
+        e->event.ufo_kill.ufo_position, rand_i32(10, 20),
+        rand_i32(0, 255));
+    return a;
+}
+
+void add_event_starting_rocks() {
+
+    ASSERT(network_state.is_server, "client tried to add add starting rocks.\n");
+
+
+    for (i32 i = 0; i < 7; i++) {
+        u8 seed = rand_i32(0, 255);
+
+        // ! functions to make events for spawning rocks 
+
+        Event* e = malloc(sizeof(Event));
+        e->type = EVENT_TYPE_NEW_ROCK;
+        EventRock* rock = &e->event.rock;
+        *rock = (EventRock){
+            .rock_size = rand_i32(1,2),
+            .jaggedness = rand_float(0.7f, 0.95f),
+            .num_vertices = rand_i32(8, ASTEROID_MAX_POINTS - 1),
+            .position = (V2f32){.x = rand_float_range(2, 0.0f, WINDOW_WIDTH / 2 - 50.0f, WINDOW_WIDTH / 2 + 50.0f, (f32)WINDOW_WIDTH),
+                                .y = rand_float_range(2, 0.0f, WINDOW_HEIGHT / 2 - 50.0f, WINDOW_HEIGHT / 2 + 50.0f, (f32)WINDOW_HEIGHT)},
+            .initial_velocity = (V2f32){.x = rand_float(-25.0f, 25.0f),
+                                        .y = rand_float(-25.0f, 25.0f)},
+            .seed = seed,
+            .id = rand() + 1 };
+
+        register_event_local(e);
+        register_event_remote(e);
+    }
+}
+
+
+
+void add_event_random_rock(RockSize size) {
+
+    ASSERT(network_state.is_server, "client tried to add a rock\n");
 
     u8 seed = rand_i32(0, 255);
 
@@ -80,7 +126,7 @@ void add_event_random_rock(RockSize size) {
         .rock_size = size,
         .jaggedness = rand_float(0.7f, 0.95f),
         .num_vertices = rand_i32(8, ASTEROID_MAX_POINTS - 1),
-        .position = (V2f32){ x, y },
+        .position = get_random_screen_edge_position(),
         .initial_velocity = (V2f32){.x = rand_float(-25.0f, 25.0f),
                                     .y = rand_float(-25.0f, 25.0f)},
         .seed = seed,

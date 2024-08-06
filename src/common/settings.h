@@ -9,7 +9,8 @@
 #define DEBUG_ENABLED 
 #define BACKGROUND_COLOR 0x15, 0x15, 0x15
 // #define SOFTWARE_RENDERING
-
+#define LOCAL_PLAYER_COLOR 0xff, 0xff, 0xff
+#define REMOTE_PLAYER_COLOR 0x80, 0xff, 0x80
 #define TEXTURES_CAPACITY 16
 
 #define REMOTE_UPDATE_FREQUENCY 48.0f // read and write to queue hz

@@ -17,10 +17,14 @@
 #include "debug.h"
 #include "entity.h"
 #include "game.h"
+#include "events.h"
 #include "netcode.h"
 #include "player.h"
 #include "settings.h"
 #include "sfx.h"
+#include "ufo.h"
+
+Ufo game_ufo;
 
 void game_init() {
     ASSERT(!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_AUDIO | SDL_INIT_TIMER),
@@ -58,6 +62,10 @@ void game_init() {
     ll_init(&state.entities);
     ll_init(&state.animations);
     queue_init(&state.event_queue, 64);
+
+    game_ufo.form = UFO_NONE;
+    game_ufo.ufo_timer = 0.0f;
+
 
 
     state.new_rock_timer = 3.0f;
@@ -98,8 +106,12 @@ void game_get_input() {
             case SDLK_F1:
             {
                 Animation* a = create_player_death_animation(
-                    local_player.position, local_player.velocity,
-                    local_player.angle_deg);
+                    local_player.position,
+                    local_player.velocity,
+                    local_player.angle_deg,
+                    (SDL_Color) {
+                    LOCAL_PLAYER_COLOR, 255
+                });
                 local_player.flags.invisible = 1;
                 ll_push_back(&state.animations, a);
                 break;
@@ -125,22 +137,77 @@ void game_get_input() {
     player_process_input(&local_player, shoot_key_down);
 }
 
-void game_process() {
+bool check_game_over() {
+    bool remote_ok = true;
+    if (!network_state.online_disable) {
+        if (remote_player.flags.perma_dead) {
+            remote_ok = false;
+        }
+    }
 
-    if (network_state.is_server) {
-        state.new_rock_timer -= delta_time;
-        if (state.new_rock_timer < 0) {
+    bool local_ok = true;
+    if (local_player.flags.perma_dead) {
+        local_ok = false;
+    }
 
-            // TODO figure out the timer 
-            state.new_rock_timer = 10.0f;
-            add_event_random_rock(ROCK_BIG);
+    return local_ok || remote_ok;
+}
+
+void game_server_process() {
+
+    if (check_game_over()) {
+        // TODO THIS
+    }
+
+
+    // ROCKS
+    state.new_rock_timer -= delta_time;
+    if (state.new_rock_timer < 0) {
+
+        // TODO figure out the timer 
+        state.new_rock_timer = 10.0f;
+        add_event_random_rock(ROCK_BIG);
+
+    }
+    // UFO    
+    u32 max_score = local_player.score;
+    if (!network_state.online_disable) {
+        if (remote_player.score > max_score) {
+            max_score = remote_player.score;
+        }
+    }
+
+    if (max_score < 10000) {
+        if (game_ufo.form == UFO_NONE && game_ufo.ufo_timer > 10.0f) {
+            add_event_ufo(UFO_SMALL ? rand_float(0.0f, 1.0f) < 0.5f : UFO_BIG);
+        }
+    }
+    else if (max_score < 25000) {
+        if (game_ufo.form == UFO_NONE && game_ufo.ufo_timer > 3.0f) {
+            add_event_ufo(UFO_SMALL ? rand_float(0.0f, 1.0f) < 0.75f : UFO_BIG);
 
         }
     }
-    // TODO UFO
+    else {
+        if (game_ufo.form == UFO_NONE && game_ufo.ufo_timer > 3.0f) {
+            add_event_ufo(UFO_SMALL);
+        }
+    }
+}
+
+void game_process() {
+
+
+    if (network_state.is_server) {
+        game_server_process();
+    }
 
     player_update(&local_player, false);
-    player_update(&remote_player, true);
+    ufo_update(&game_ufo);
+
+    if (!network_state.online_disable) {
+        player_update(&remote_player, true);
+    }
 
     Event* e = NULL;
     funct_ret_t ret;
@@ -158,11 +225,31 @@ void game_process() {
             ret = ll_push_front(&state.entities, rock);
             break;
         }
-        case EVENT_PLAYER_DEATH:
+        case EVENT_REMOTE_PLAYER_DEATH:
         {
+            play_sound(SFX_DEATH);
             Animation* a = create_player_death_animation(
-                e->event.player_death.position, e->event.player_death.velocity,
-                e->event.player_death.angle_deg);
+                e->event.player_death.position,
+                e->event.player_death.velocity,
+                e->event.player_death.angle_deg,
+                (SDL_Color) {
+                REMOTE_PLAYER_COLOR, 255
+            });
+
+            ll_push_back(&state.animations, a);
+
+            break;
+        }
+        case EVENT_LOCAL_PLAYER_DEATH:
+        {
+            play_sound(SFX_DEATH);
+            Animation* a = create_player_death_animation(
+                e->event.player_death.position,
+                e->event.player_death.velocity,
+                e->event.player_death.angle_deg,
+                (SDL_Color) {
+                LOCAL_PLAYER_COLOR, 255
+            });
 
             ll_push_back(&state.animations, a);
 
@@ -183,7 +270,7 @@ void game_process() {
                         Animation* a = create_sprinkle_animation(
                             entity->data.common.position, rand_i32(10, 20),
                             rand_i32(0, 255));
-                    ll_push_back(&state.animations, a);
+                        ll_push_back(&state.animations, a);
 
                     }
 
@@ -196,6 +283,14 @@ void game_process() {
         {
             ASSERT(!network_state.is_server, "server was comamnded to add points to itself");
             local_player.score += e->event.add_points.points_to_add;
+            break;
+        }
+        case EVENT_UFO_KILL:
+            // TODO
+            break;
+        case EVENT_UFO_SPAWN:
+        {
+            make_ufo_from_event(e, &game_ufo);
             break;
         }
 
@@ -226,13 +321,84 @@ void game_process() {
         ll_iter_next(&iter);
     }
 
-    // ? handle player deaths locally ?
-    // all collisions, checked only on server 
+
+    LinkedListIter list_iter;
+    ll_iter_assign_direction(&list_iter, &state.entities, LL_ITER_H_TO_T);
+    bool local_player_colision = false;
+    if (local_player.ex_flags.invincible == 1) {
+        goto player_collision_skip;
+    }
+    while (!ll_iter_end(&list_iter)) {
+        Entity* e = ll_iter_peek(&list_iter);
+
+        // player - rock 
+        if (e->type == ENTITY_ROCK) {
+            // TODO actual collision not the mid point
+            local_player_colision |= entity_check_collision_point(e, local_player.position);
+            if (local_player_colision) {
+                debug_log_death(local_player.position, e);
+                break;
+            }
+
+        }
+
+        // player - ufo bullet 
+
+
+        // player - ufo (ramming)
+
+
+
+        ll_iter_next(&list_iter);
+
+    }
+
+
+    if (local_player_colision) {
+        Event* e = malloc(sizeof(Event));
+        e->type = EVENT_LOCAL_PLAYER_DEATH;
+        e->event.player_death.angle_deg = local_player.angle_deg;
+        e->event.player_death.position = local_player.position;
+        e->event.player_death.velocity = local_player.velocity;
+
+        register_event_local(e); // animation / visuals only  
+
+        Event* e_remote = malloc(sizeof(Event));
+        e_remote->type = EVENT_REMOTE_PLAYER_DEATH;
+        e_remote->event.player_death.angle_deg = local_player.angle_deg;
+        e_remote->event.player_death.position = local_player.position;
+        e_remote->event.player_death.velocity = local_player.velocity;
+
+        register_event_remote(e_remote);
+
+// TODO 
+// something like player_regeister_name to handle lifes / game over
+        local_player.angle_deg = 0.0f;
+        local_player.position = (V2f32){ .x = WINDOW_WIDTH / 2, .y = WINDOW_HEIGHT / 2 };
+        local_player.velocity = (V2f32){ 0 };
+        local_player.ex_flags.invincible = 1;
+        if (local_player.lives == 0) {
+            local_player.flags.perma_dead = 1;
+        }
+
+        local_player.lives = max(local_player.lives - 1, 0);
+
+
+        local_player.invincibility_timer = 3.0f;
+        local_player.flags.invisible = 1;
+
+    }
+
+player_collision_skip:
+
+    // all other (non player death) collisions, checked only on server 
     if (!network_state.is_server) {
         return;
     }
 
-    // bullet - rock and bulelt - ufo 
+
+
+// bullet - rock and bulelt - ufo 
     LinkedListIter bullet_iter;
     LinkedListIter rock_iter;
     Entity* entity = NULL;
@@ -290,86 +456,47 @@ void game_process() {
                     break;
                 }
             }
-           
+
             ll_iter_next(&rock_iter);
         }
         ll_iter_next(&bullet_iter);
     }
 
 
-    // TODO handle this locally 
-    // player collision
-    LinkedListIter list_iter;
-    ll_iter_assign_direction(&list_iter, &state.entities, LL_ITER_H_TO_T);
-    bool local_player_colision = false;
-    bool remote_player_colision = false;
-    while (!ll_iter_end(&list_iter)) {
-        Entity* e = ll_iter_peek(&list_iter);
 
-
-        // player - rock 
-        if (e->type == ENTITY_ROCK) {
-
-            // TODO actual collision not the mid point
-            local_player_colision |= entity_check_collision_point(e, local_player.position);
-            remote_player_colision |= entity_check_collision_point(e, remote_player.position);
-        }
-
-        // player - ufo bullet 
-
-
-        // player - ufo (ramming)
-
-
-
-        ll_iter_next(&list_iter);
-
-    }
-
-
-    if (local_player_colision) {
-        Event* e = malloc(sizeof(Event));
-        e->type = EVENT_PLAYER_DEATH;
-        e->event.player_death.angle_deg = local_player.angle_deg;
-        e->event.player_death.position = local_player.position;
-        e->event.player_death.velocity = local_player.velocity;
-
-        register_event_local(e);
-        register_event_remote(e);
-    }
-
-
-    if (remote_player_colision) {
-        Event* e = malloc(sizeof(Event));
-        e->type = EVENT_PLAYER_DEATH;
-        e->event.player_death.angle_deg =remote_player.angle_deg;
-        e->event.player_death.position =remote_player.position;
-        e->event.player_death.velocity =remote_player.velocity;
-
-        register_event_local(e);
-        register_event_remote(e);
-    }
 }
 
 void game_update_remote() {
     mtx_lock(&network_state.remote_player_state.mutex);
 
-    remote_player.angle_deg =
-        network_state.remote_player_state.player_state.angle;
+    remote_player.angle_deg = network_state.remote_player_state.player_state.angle;
     remote_player.position.x = network_state.remote_player_state.player_state.x;
     remote_player.position.y = network_state.remote_player_state.player_state.y;
-    remote_player.velocity.x =
-        network_state.remote_player_state.player_state.v_x;
-    remote_player.velocity.y =
-        network_state.remote_player_state.player_state.v_y;
+    remote_player.velocity.x = network_state.remote_player_state.player_state.v_x;
+    remote_player.velocity.y = network_state.remote_player_state.player_state.v_y;
     remote_player.flags = network_state.remote_player_state.player_state.flags;
     remote_player.score = network_state.remote_player_state.player_state.score;
     remote_player.lives = network_state.remote_player_state.player_state.lives;
 
     mtx_unlock(&network_state.remote_player_state.mutex);
-
-
     queue_enqueue(&network_state.transmit.tx_queue, packet_from_player(&local_player));
+
+
+    if (network_state.is_server) {
+        queue_enqueue(&network_state.transmit.tx_queue, packet_from_ufo(&game_ufo));
+    }
+    else {
+        mtx_lock(&network_state.ufo_state.mutex);
+        game_ufo.angle_deg = network_state.ufo_state.ufo.angle;
+        game_ufo.form = network_state.ufo_state.ufo.current_form;
+        game_ufo.position.x = network_state.ufo_state.ufo.x;
+        game_ufo.position.y = network_state.ufo_state.ufo.y;
+        game_ufo.velocity.x = network_state.ufo_state.ufo.v_x;
+        game_ufo.velocity.y = network_state.ufo_state.ufo.v_y;
+        mtx_unlock(&network_state.ufo_state.mutex);
+    }
+
+
 }
 
 void game_render() {
@@ -390,8 +517,9 @@ void game_render() {
     if (!network_state.online_disable) {
         player_render_score(&remote_player, true);
     }
-    player_render(&local_player, (SDL_Color) { .r = 255, .g = 255, .b = 255, .a = 255 });
-    player_render(&remote_player, (SDL_Color) { .r = 128, .g = 255, .b = 128, .a = 255 });
+    player_render(&local_player, (SDL_Color) { LOCAL_PLAYER_COLOR, .a = 255 });
+    player_render(&remote_player, (SDL_Color) { REMOTE_PLAYER_COLOR, .a = 255 });
+    ufo_render(&game_ufo);
 
 
     SDL_SetRenderDrawColor(state.renderer, 0, 0, 0, 0);

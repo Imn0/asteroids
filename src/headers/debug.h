@@ -1,4 +1,5 @@
 #include "common.h"
+#include "entity.h"
 
 typedef struct {
     f64 frame_time, logic_time, render_time;
@@ -12,3 +13,4 @@ void debug_loop_start();
 void debug_before_render();
 void debug_after_render();
 void debug_render();
+void debug_log_death(V2f32 player_pos, Entity* entity);

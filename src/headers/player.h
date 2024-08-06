@@ -4,7 +4,7 @@
 #include "entity.h"
 
 #define PLAYER_SCALE 0.66f
-#define PLAYER_SIZE 64 * 0.66f
+#define PLAYER_SIZE 64 * PLAYER_SCALE // used for turning on phantom
 #define PLAYER_BOOP_OFF_TIME 0.05f
 #define PLAYER_BOOP_ON_TIME 0.05f
 #define PLAYER_SEGMENTS_SIZE 3
@@ -27,10 +27,12 @@ typedef struct player_flags_t {
     u32 rotate_right : 1;
     u32 accelerate : 1;
     u32 invisible : 1;
+    u32 perma_dead : 1;
 } player_flags_t;
 
 typedef struct player_flags_ex_t {
     u32 boop : 1;
+    u32 invincible : 1;
 } player_flags_ex_t;
 
 typedef struct {
@@ -40,6 +42,7 @@ typedef struct {
     player_flags_ex_t ex_flags;
     f32 shoot_timer;
     f32 bloop_timer;
+    f32 invincibility_timer;
     u32 score;
     u8 lives;
     struct {

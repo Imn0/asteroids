@@ -163,4 +163,4 @@ i32 main(i32 argc, char* argv[]) {
     game_teardown();
 
     return 0;
-}
+    }
