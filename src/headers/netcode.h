@@ -9,8 +9,8 @@
 #endif
 
 #include "common.h"
-#include "game.h"
 #include "events.h"
+#include "game.h"
 #include "player.h"
 #include "ufo.h"
 
@@ -59,7 +59,7 @@ typedef struct {
     bool online_disable;
     atomic_int running;
     i32 socket_fd;
-    
+
     struct {
         thrd_t receive_thrd;
         Queue rx_queue;

@@ -16,8 +16,6 @@
 #include "fake_threads.h" // MinGW
 #endif
 
-
-
 #include "settings.h"
 
 typedef int8_t i8;
@@ -61,12 +59,24 @@ i32 rand_i32_seed(i32 min, i32 max, u8 seed);
 f32 rand_float_range(i32 num_ranges, ...);
 f32 rand_float_range_seed(u8 seed, i32 num_ranges, ...);
 
-#define min(_a, _b) ({ __typeof__(_a) __a = (_a), __b = (_b); __a < __b ? __a : __b; })
-#define max(_a, _b) ({ __typeof__(_a) __a = (_a), __b = (_b); __a > __b ? __a : __b; })
+#define min(_a, _b)                                                            \
+    ({                                                                         \
+        __typeof__(_a) __a = (_a), __b = (_b);                                 \
+        __a < __b ? __a : __b;                                                 \
+    })
+#define max(_a, _b)                                                            \
+    ({                                                                         \
+        __typeof__(_a) __a = (_a), __b = (_b);                                 \
+        __a > __b ? __a : __b;                                                 \
+    })
 static inline f32 deg_to_rad(f32 d) { return d * (PI / 180.0f); }
-static inline f32 dot(V2f32 v0, V2f32 v1) { return (v0.x * v1.x) + (v0.y * v1.y); }
+static inline f32 dot(V2f32 v0, V2f32 v1) {
+    return (v0.x * v1.x) + (v0.y * v1.y);
+}
 static inline f32 length(V2f32 vl) { return sqrtf(dot(vl, vl)); }
-static inline f32 dist(V2f32 v0, V2f32 v1) { return length((V2f32) { .x = v1.x - v0.x, .y = v1.y - v0.y }); }
+static inline f32 dist(V2f32 v0, V2f32 v1) {
+    return length((V2f32) { .x = v1.x - v0.x, .y = v1.y - v0.y });
+}
 static inline f32 rad_to_deg(f32 d) { return d * (180.0f / PI); }
 static inline V2f32 rotate_point(V2f32 point, V2f32 center, f32 angle_rad) {
     f32 s = sinf(angle_rad);
@@ -81,7 +91,6 @@ static inline V2f32 rotate_point(V2f32 point, V2f32 center, f32 angle_rad) {
     rotated.y = ynew + center.y;
     return rotated;
 }
-
 
 #define ASSERT(_e, ...)                                                        \
     if (!(_e)) {                                                               \
@@ -166,11 +175,9 @@ func ll_iter_prev(LinkedListIter* iter);
 void* ll_iter_peek(LinkedListIter* iter);
 void ll_iter_strip(LinkedListIter* iter);
 void ll_init(LinkedList* list);
-func ll_push_back_dtor(LinkedList* list, void* data,
-                       void (*dtor)(void* data));
+func ll_push_back_dtor(LinkedList* list, void* data, void (*dtor)(void* data));
 func ll_push_back(LinkedList* list, void* data);
-func ll_push_front_dtor(LinkedList* list, void* data,
-                        void (*dtor)(void* data));
+func ll_push_front_dtor(LinkedList* list, void* data, void (*dtor)(void* data));
 func ll_push_front(LinkedList* list, void* data);
 
 /**
@@ -181,16 +188,19 @@ func ll_push_front(LinkedList* list, void* data);
  * @param iter
  * @return func
  */
-func ll_iter_remove_at(LinkedList* list,
-                       LinkedListIter* iter);
+func ll_iter_remove_at(LinkedList* list, LinkedListIter* iter);
 func ll_pop_back(LinkedList* list, void** data);
 func ll_pop_front(LinkedList* list, void** data);
 void ll_destroy(LinkedList* list);
 /* LINKED LIST */
 
-static inline void gfx_render_thick_line(SDL_Renderer* renderer, float x1,
-                                         float y1, float x2, float y2,
-                                         float thickness, SDL_Color color) {
+static inline void gfx_render_thick_line(SDL_Renderer* renderer,
+                                         float x1,
+                                         float y1,
+                                         float x2,
+                                         float y2,
+                                         float thickness,
+                                         SDL_Color color) {
     float dx = x2 - x1;
     float dy = y2 - y1;
     float length = sqrtf(dx * dx + dy * dy);
@@ -202,18 +212,19 @@ static inline void gfx_render_thick_line(SDL_Renderer* renderer, float x1,
 
     float halfThickness = thickness / 2.0f;
     SDL_Vertex vertices[4] = {
-        {.position = {x1 + px * halfThickness, y1 + py * halfThickness},
+        { .position = { x1 + px * halfThickness, y1 + py * halfThickness },
          .color = color,
-         .tex_coord = {0, 0}},
-        {.position = {x1 - px * halfThickness, y1 - py * halfThickness},
+         .tex_coord = { 0, 0 } },
+        { .position = { x1 - px * halfThickness, y1 - py * halfThickness },
          .color = color,
-         .tex_coord = {0, 0}},
-        {.position = {x2 - px * halfThickness, y2 - py * halfThickness},
+         .tex_coord = { 0, 0 } },
+        { .position = { x2 - px * halfThickness, y2 - py * halfThickness },
          .color = color,
-         .tex_coord = {0, 0}},
-        {.position = {x2 + px * halfThickness, y2 + py * halfThickness},
+         .tex_coord = { 0, 0 } },
+        { .position = { x2 + px * halfThickness, y2 + py * halfThickness },
          .color = color,
-         .tex_coord = {0, 0}} };
+         .tex_coord = { 0, 0 } }
+    };
 
     int indices[6] = { 0, 1, 2, 2, 3, 0 };
 

@@ -1,6 +1,6 @@
 #if !defined(_WIN32) || defined(_MSC_VER)
 
-#if !defined (_WIN32)  // all windows
+#if !defined(_WIN32) // all windows
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netinet/in.h>
@@ -14,49 +14,46 @@
 #include <unistd.h>
 
 #elif defined(_MSC_VER) // mscv has threads which are needed
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <threads.h>
+#include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#include <threads.h>
-#include <stdbool.h>
-#include <windows.h>
-
 
 #pragma comment(lib, "Ws2_32.lib")
 #endif
 
 #include "common.h"
-#include "netcode.h"
 #include "events.h"
+#include "netcode.h"
 
 i32 network_consumer(void* args) {
     (void)args;
     Packet* p = NULL;
     while (network_state.running) {
-        while (queue_dequeue(&network_state.receive.rx_queue, (void*)&p) ==
-               0) {
+        while (queue_dequeue(&network_state.receive.rx_queue, (void*)&p) == 0) {
             if (p == NULL) {
                 break; /* no updates */
             }
             switch (p->type) {
-            case PACKET_PLAYER:
-            {
+            case PACKET_PLAYER: {
                 PlayerPacket* packet = &p->payload.player_packet;
                 mtx_lock(&network_state.remote_player_state.mutex);
-                memcpy(&network_state.remote_player_state, packet, sizeof(PlayerPacket));
+                memcpy(&network_state.remote_player_state,
+                       packet,
+                       sizeof(PlayerPacket));
                 mtx_unlock(&network_state.remote_player_state.mutex);
                 break;
             }
-            case PACKET_EVENT:
-            {
+            case PACKET_EVENT: {
                 Event* e = malloc(sizeof(Event));
                 *e = p->payload.event_packet.event;
                 register_event_local(e);
                 break;
             }
-            case PACKET_UFO:
-            {
+            case PACKET_UFO: {
                 UfoPacket* packet = &p->payload.ufo_packet;
                 mtx_lock(&network_state.ufo_state.mutex);
                 memcpy(&network_state.ufo_state, packet, sizeof(UfoPacket));
@@ -90,11 +87,10 @@ func common_init() {
         return ERR_MTX_INIT;
     }
 
-    if (mtx_init(&network_state.ufo_state.mutex, mtx_plain) !=
-        thrd_success) {
+    if (mtx_init(&network_state.ufo_state.mutex, mtx_plain) != thrd_success) {
         return ERR_MTX_INIT;
     }
-    
+
     queue_init(&network_state.receive.rx_queue, 64);
     queue_init(&network_state.transmit.tx_queue, 64);
     return OK;
@@ -124,15 +120,16 @@ func server_init() {
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = 0;  // Use 0 to bind to any open port
+    addr.sin_port = 0; // Use 0 to bind to any open port
 
-    if (bind(ListenSocket, (struct sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR) {
+    if (bind(ListenSocket, (struct sockaddr*)&addr, sizeof(addr)) ==
+        SOCKET_ERROR) {
         printf("bind failed with error: %d\n", WSAGetLastError());
         closesocket(ListenSocket);
         WSACleanup();
         return ERR_GENRIC_BAD;
     }
-        // read port
+    // read port
     socklen_t addr_len = sizeof(addr);
     getsockname(ListenSocket, (struct sockaddr*)&addr, &addr_len);
     printf("server is on port %d\n", (int)ntohs(addr.sin_port));
@@ -147,7 +144,9 @@ func server_init() {
     // accept incoming connection
     struct sockaddr_storage caddr;
     socklen_t caddr_len = sizeof(caddr);
-    SOCKET ClientSocket = accept(ListenSocket, (struct sockaddr*)&caddr, &caddr_len);
+    SOCKET ClientSocket = accept(ListenSocket,
+                                 (struct sockaddr*)&caddr,
+                                 &caddr_len);
     if (ClientSocket == INVALID_SOCKET) {
         printf("accept failed with error: %d\n", WSAGetLastError());
         closesocket(ListenSocket);
@@ -155,11 +154,12 @@ func server_init() {
         return ERR_GENRIC_BAD;
     }
 
-
     printf("connection accepted\n");
-    thrd_create(&network_state.receive.receive_thrd, receive_packets,
+    thrd_create(&network_state.receive.receive_thrd,
+                receive_packets,
                 (void*)(int*)ClientSocket);
-    thrd_create(&network_state.transmit.transmit_thrd, send_packets,
+    thrd_create(&network_state.transmit.transmit_thrd,
+                send_packets,
                 (void*)(int*)ClientSocket);
 #else
     const i32 fd = socket(PF_INET, SOCK_STREAM, 0);
@@ -180,9 +180,11 @@ func server_init() {
     network_state.socket_fd = accept(fd, (struct sockaddr*)&caddr, &caddr_len);
 
     printf("connection accepted\n");
-    thrd_create(&network_state.receive.receive_thrd, receive_packets,
+    thrd_create(&network_state.receive.receive_thrd,
+                receive_packets,
                 &network_state.socket_fd);
-    thrd_create(&network_state.transmit.transmit_thrd, send_packets,
+    thrd_create(&network_state.transmit.transmit_thrd,
+                send_packets,
                 &network_state.socket_fd);
 #endif
 
@@ -224,9 +226,11 @@ func client_init(i32 client_port) {
         return ERR_GENRIC_BAD;
     }
 
-    thrd_create(&network_state.receive.receive_thrd, receive_packets,
+    thrd_create(&network_state.receive.receive_thrd,
+                receive_packets,
                 (void*)(int*)fd);
-    thrd_create(&network_state.transmit.transmit_thrd, send_packets,
+    thrd_create(&network_state.transmit.transmit_thrd,
+                send_packets,
                 (void*)(int*)fd);
 #else
     network_state.socket_fd = socket(PF_INET, SOCK_STREAM, 0);
@@ -234,14 +238,17 @@ func client_init(i32 client_port) {
     addr.sin_family = AF_INET;
     addr.sin_port = htons((short)client_port);
     inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
-    if (connect(network_state.socket_fd, (struct sockaddr*)&addr, sizeof(addr))) {
+    if (connect(network_state.socket_fd,
+                (struct sockaddr*)&addr,
+                sizeof(addr))) {
         return ERR_CONNECT;
     }
 
-
-    thrd_create(&network_state.receive.receive_thrd, receive_packets,
+    thrd_create(&network_state.receive.receive_thrd,
+                receive_packets,
                 &network_state.socket_fd);
-    thrd_create(&network_state.transmit.transmit_thrd, send_packets,
+    thrd_create(&network_state.transmit.transmit_thrd,
+                send_packets,
                 &network_state.socket_fd);
 #endif
     return OK;
@@ -260,7 +267,7 @@ i32 receive_packets(void* args) {
 
 #ifndef _WIN32
         ssize_t bytes_received = recv(socket_fd, packet, sizeof(Packet), 0);
-#else 
+#else
         i32 bytes_received = recv(socket, (char*)packet, sizeof(Packet), 0);
 #endif
 
@@ -269,14 +276,12 @@ i32 receive_packets(void* args) {
             printf("Client disconnected.\n");
             free(packet);
             break;
-        }
-        else if (bytes_received < 0) {
+        } else if (bytes_received < 0) {
             if (errno == EINTR) {
                 // Interrupted system call, try again
                 free(packet);
                 continue;
-            }
-            else {
+            } else {
                 // Other error occurred
                 perror("recv error");
                 free(packet);
@@ -285,7 +290,6 @@ i32 receive_packets(void* args) {
         }
         queue_enqueue(&network_state.receive.rx_queue, packet);
     }
-
 
 #ifndef _WIN32
     close(socket_fd);
@@ -308,13 +312,13 @@ i32 send_packets(void* args) {
 
         Packet* p = NULL;
         while (1) {
-        // while (queue_dequeue(&network_state.transmit.tx_queue, (void*)&p) == OK) {
+            // while (queue_dequeue(&network_state.transmit.tx_queue, (void*)&p)
+            // == OK) {
 
             queue_dequeue(&network_state.transmit.tx_queue, (void*)&p);
             if (p == NULL) {
                 continue;
             }
-
 
 #ifndef _WIN32
             ssize_t bytes_sent = send(socket_fd, p, sizeof(Packet), 0);
@@ -322,14 +326,12 @@ i32 send_packets(void* args) {
             int bytes_sent = send(socket, (char*)p, sizeof(Packet), 0);
 #endif
 
-
             if (bytes_sent < 0) {
                 if (errno == EINTR) {
                     // Interrupted system call, try again
                     continue;
-                }
-                else {
-                 // Other error occurred
+                } else {
+                    // Other error occurred
                     // perror("send error");
                     free(p);
                     printf("send error");
@@ -343,7 +345,6 @@ i32 send_packets(void* args) {
 #else
         nanosleep(&(struct timespec) { .tv_nsec = 1000, .tv_sec = 0 }, NULL);
 #endif
-
     }
 
     return OK;

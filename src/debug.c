@@ -1,8 +1,8 @@
-#include <SDL_timer.h>
-#include <stdio.h>
 #include "debug.h"
 #include "entity.h"
 #include "game.h"
+#include <SDL_timer.h>
+#include <stdio.h>
 
 DebugState debug_state = { 0 };
 
@@ -18,22 +18,26 @@ static u64 render_start;
 #define LABEL_MARGIN 30
 #define INFO_AREA_HEIGHT 100
 
-void draw_graph(SDL_Surface* surface, f64* times, Uint32 color, int graph_index,
-                const char* label, int current_index);
+void draw_graph(SDL_Surface* surface,
+                f64* times,
+                Uint32 color,
+                int graph_index,
+                const char* label,
+                int current_index);
 void debug_loop_start() { loop_start = SDL_GetPerformanceCounter(); }
 
 void debug_before_render() {
     render_start = SDL_GetPerformanceCounter();
     debug_state.logic_time = (render_start - loop_start) /
-        (f64)SDL_GetPerformanceFrequency() * 1000.0;
+                             (f64)SDL_GetPerformanceFrequency() * 1000.0;
 }
 
 void debug_after_render() {
     u64 now = SDL_GetPerformanceCounter();
-    debug_state.render_time =
-        (now - render_start) / (f64)SDL_GetPerformanceFrequency() * 1000.0;
-    debug_state.frame_time =
-        (now - loop_start) / (f64)SDL_GetPerformanceFrequency() * 1000.0;
+    debug_state.render_time = (now - render_start) /
+                              (f64)SDL_GetPerformanceFrequency() * 1000.0;
+    debug_state.frame_time = (now - loop_start) /
+                             (f64)SDL_GetPerformanceFrequency() * 1000.0;
 }
 
 void draw_info(SDL_Surface* surface, int y_offset) {
@@ -42,12 +46,18 @@ void draw_info(SDL_Surface* surface, int y_offset) {
     i32 x_margin = 10;
 
     char fps_text[50];
-    snprintf(fps_text, sizeof(fps_text), "FPS: %.2f",
+    snprintf(fps_text,
+             sizeof(fps_text),
+             "FPS: %.2f",
              1000.0 / debug_state.frame_time);
-    SDL_Surface* fps_surface =
-        TTF_RenderText_Solid(state.font, fps_text, text_color);
+    SDL_Surface* fps_surface = TTF_RenderText_Solid(state.font,
+                                                    fps_text,
+                                                    text_color);
     if (fps_surface) {
-        SDL_Rect fps_rect = { x_margin, y_offset, fps_surface->w, fps_surface->h };
+        SDL_Rect fps_rect = { x_margin,
+                              y_offset,
+                              fps_surface->w,
+                              fps_surface->h };
         SDL_BlitSurface(fps_surface, NULL, surface, &fps_rect);
         SDL_FreeSurface(fps_surface);
     }
@@ -79,8 +89,7 @@ void get_mouse_logical_position(V2f32* mouse) {
         viewport_w = (int)(current_window_h * logical_aspect_ratio);
         viewport_x = (current_window_w - viewport_w) / 2;
         viewport_y = 0;
-    }
-    else {
+    } else {
         viewport_w = current_window_w;
         viewport_h = (int)(current_window_w / logical_aspect_ratio);
         viewport_x = 0;
@@ -91,17 +100,13 @@ void get_mouse_logical_position(V2f32* mouse) {
         actual_y >= viewport_y && actual_y < viewport_y + viewport_h) {
         mouse->x = (actual_x - viewport_x) * WINDOW_WIDTH / viewport_w;
         mouse->y = (actual_y - viewport_y) * WINDOW_HEIGHT / viewport_h;
-    }
-    else {
+    } else {
         mouse->x = -1;
         mouse->y = -1;
     }
-
-
 }
 
 void draw_mouse_colisions() {
-
 
     V2f32 mouse_pos;
     get_mouse_logical_position(&mouse_pos);
@@ -132,7 +137,8 @@ void draw_mouse_colisions() {
 }
 
 void debug_render() {
-    if (!debug_state.show_info) return;
+    if (!debug_state.show_info)
+        return;
 
     static f64 frame_times[GRAPH_POINTS] = { 0 };
     static f64 logic_times[GRAPH_POINTS] = { 0 };
@@ -145,18 +151,24 @@ void debug_render() {
     render_times[current_index] = debug_state.render_time;
     current_index = (current_index + 1) % GRAPH_POINTS;
 
-    i32 total_height =
-        (GRAPH_HEIGHT + GRAPH_MARGIN) * 3 + LABEL_MARGIN + INFO_AREA_HEIGHT;
-    SDL_Surface* graph_surface =
-        SDL_CreateRGBSurface(0, GRAPH_WIDTH, total_height, 32, 0xFF000000,
-                             0x00FF0000, 0x0000FF00, 0x000000FF);
+    i32 total_height = (GRAPH_HEIGHT + GRAPH_MARGIN) * 3 + LABEL_MARGIN +
+                       INFO_AREA_HEIGHT;
+    SDL_Surface* graph_surface = SDL_CreateRGBSurface(0,
+                                                      GRAPH_WIDTH,
+                                                      total_height,
+                                                      32,
+                                                      0xFF000000,
+                                                      0x00FF0000,
+                                                      0x0000FF00,
+                                                      0x000000FF);
     if (!graph_surface) {
         printf("Unable to create graph surface: %s\n", SDL_GetError());
         return;
     }
 
     // background
-    SDL_FillRect(graph_surface, NULL,
+    SDL_FillRect(graph_surface,
+                 NULL,
                  SDL_MapRGB(graph_surface->format, 40, 40, 40));
 
     // Define colors
@@ -165,18 +177,30 @@ void debug_render() {
     Uint32 render_color = SDL_MapRGB(graph_surface->format, 0, 0, 255); // Blue
 
     // graphs
-    draw_graph(graph_surface, frame_times, frame_color, 0, "Frame Time (ms)",
+    draw_graph(graph_surface,
+               frame_times,
+               frame_color,
+               0,
+               "Frame Time (ms)",
                current_index);
-    draw_graph(graph_surface, logic_times, logic_color, 1, "Logic Time (ms)",
+    draw_graph(graph_surface,
+               logic_times,
+               logic_color,
+               1,
+               "Logic Time (ms)",
                current_index);
-    draw_graph(graph_surface, render_times, render_color, 2, "Render Time (ms)",
+    draw_graph(graph_surface,
+               render_times,
+               render_color,
+               2,
+               "Render Time (ms)",
                current_index);
 
     // additional information
     draw_info(graph_surface, (GRAPH_HEIGHT + GRAPH_MARGIN) * 3 + LABEL_MARGIN);
 
-    SDL_Texture* graph_texture =
-        SDL_CreateTextureFromSurface(state.renderer, graph_surface);
+    SDL_Texture* graph_texture = SDL_CreateTextureFromSurface(state.renderer,
+                                                              graph_surface);
     if (!graph_texture) {
         printf("Unable to create texture from surface: %s\n", SDL_GetError());
         SDL_FreeSurface(graph_surface);
@@ -192,17 +216,25 @@ void debug_render() {
     SDL_FreeSurface(graph_surface);
 }
 
-void draw_graph(SDL_Surface* surface, f64* times, Uint32 color, int graph_index,
-                const char* label, int current_index) {
+void draw_graph(SDL_Surface* surface,
+                f64* times,
+                Uint32 color,
+                int graph_index,
+                const char* label,
+                int current_index) {
     int y_offset = graph_index * (GRAPH_HEIGHT + GRAPH_MARGIN) + LABEL_MARGIN;
     f64 max_time = 33.33; // Assume 30 FPS as maximum
 
     // label
     SDL_Surface* label_surface = TTF_RenderText_Solid(
-        state.small_font, label, (SDL_Color) { 255, 255, 255, 255 });
+            state.small_font,
+            label,
+            (SDL_Color) { 255, 255, 255, 255 });
     if (label_surface) {
-        SDL_Rect label_rect = { 0, y_offset - LABEL_MARGIN, label_surface->w,
-                               label_surface->h };
+        SDL_Rect label_rect = { 0,
+                                y_offset - LABEL_MARGIN,
+                                label_surface->w,
+                                label_surface->h };
         SDL_BlitSurface(label_surface, NULL, surface, &label_rect);
         SDL_FreeSurface(label_surface);
     }
@@ -211,17 +243,24 @@ void draw_graph(SDL_Surface* surface, f64* times, Uint32 color, int graph_index,
     for (int i = 0; i <= SCALE_STEPS; i++) {
         int y = y_offset + GRAPH_HEIGHT - (i * GRAPH_HEIGHT / SCALE_STEPS);
         SDL_Rect line_rect = { 0, y, GRAPH_WIDTH, 1 };
-        SDL_FillRect(surface, &line_rect,
+        SDL_FillRect(surface,
+                     &line_rect,
                      SDL_MapRGB(surface->format, 100, 100, 100));
 
         char scale_text[10];
-        snprintf(scale_text, sizeof(scale_text), "%.1f",
+        snprintf(scale_text,
+                 sizeof(scale_text),
+                 "%.1f",
                  i * max_time / SCALE_STEPS);
         SDL_Surface* text_surface = TTF_RenderText_Solid(
-            state.small_font, scale_text, (SDL_Color) { 255, 255, 255, 255 });
+                state.small_font,
+                scale_text,
+                (SDL_Color) { 255, 255, 255, 255 });
         if (text_surface) {
-            SDL_Rect text_rect = { 0, y - text_surface->h / 2, text_surface->w,
-                                  text_surface->h };
+            SDL_Rect text_rect = { 0,
+                                   y - text_surface->h / 2,
+                                   text_surface->w,
+                                   text_surface->h };
             SDL_BlitSurface(text_surface, NULL, surface, &text_rect);
             SDL_FreeSurface(text_surface);
         }
@@ -232,14 +271,16 @@ void draw_graph(SDL_Surface* surface, f64* times, Uint32 color, int graph_index,
         int x1 = i * GRAPH_WIDTH / GRAPH_POINTS;
         int x2 = (i + 1) * GRAPH_WIDTH / GRAPH_POINTS;
         int y1 = y_offset + GRAPH_HEIGHT -
-            (int)(times[(current_index + i) % GRAPH_POINTS] / max_time *
-                  GRAPH_HEIGHT);
+                 (int)(times[(current_index + i) % GRAPH_POINTS] / max_time *
+                       GRAPH_HEIGHT);
         int y2 = y_offset + GRAPH_HEIGHT -
-            (int)(times[(current_index + i + 1) % GRAPH_POINTS] /
-                  max_time * GRAPH_HEIGHT);
+                 (int)(times[(current_index + i + 1) % GRAPH_POINTS] /
+                       max_time * GRAPH_HEIGHT);
 
-        SDL_Rect line_rect = { x1, SDL_min(y1, y2), x2 - x1 + 1,
-                              abs(y2 - y1) + 1 };
+        SDL_Rect line_rect = { x1,
+                               SDL_min(y1, y2),
+                               x2 - x1 + 1,
+                               abs(y2 - y1) + 1 };
         SDL_FillRect(surface, &line_rect, color);
     }
 }
@@ -248,26 +289,29 @@ void debug_log_death(V2f32 player_pos, Entity* entity) {
 
     printf("Player was killed at %f, %f", player_pos.x, player_pos.y);
     printf(" by %d\n", entity->type);
-    printf("which was at %f, %f\n", entity->data.common.position.x, entity->data.common.position.y);
+    printf("which was at %f, %f\n",
+           entity->data.common.position.x,
+           entity->data.common.position.y);
 
     if (entity->type == ENTITY_ROCK) {
         printf("phantom is %d", entity->data.rock.phantom.phantom_enabled);
         if (entity->data.rock.phantom.phantom_enabled) {
-            printf("at %f, %f \n", entity->data.rock.phantom.position.x, entity->data.rock.phantom.position.y);
-        }
-        else {
+            printf("at %f, %f \n",
+                   entity->data.rock.phantom.position.x,
+                   entity->data.rock.phantom.position.y);
+        } else {
             printf("\n");
         }
 
         printf("rotation : %f\npoints:\n", entity->data.rock.angle_deg);
         for (i32 i = 0; i < entity->data.rock.num_vertices; i++) {
-            printf("%d: %f %f\n", i, entity->data.rock.vertices[i].x, entity->data.rock.vertices[i].y);
+            printf("%d: %f %f\n",
+                   i,
+                   entity->data.rock.vertices[i].x,
+                   entity->data.rock.vertices[i].y);
         }
 
-    }
-    else if (entity->type == ENTITY_BULLET) {
+    } else if (entity->type == ENTITY_BULLET) {
         // nothing ig?
     }
-
-
 }

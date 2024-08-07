@@ -23,7 +23,7 @@ typedef struct {
     LinkedList entities;
     LinkedList animations;
     f32 new_rock_timer;
-    
+
 } State;
 
 extern f32 delta_time;

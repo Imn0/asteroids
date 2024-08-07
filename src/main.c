@@ -37,14 +37,11 @@ f32 delta_time;
 i32 main(i32 argc, char* argv[]) {
     srand(time(NULL));
 
-
-#if  defined(_WIN32) && defined(DEBUG_ENABLED) 
+#if defined(_WIN32) && defined(DEBUG_ENABLED)
     AllocConsole();
     freopen("CONOUT$", "w", stdout);
 
 #endif
-
-
 
     network_state.online_disable = true;
     network_state.is_server = true;
@@ -80,8 +77,7 @@ i32 main(i32 argc, char* argv[]) {
         network_state.online_disable = false;
         network_state.is_server = false;
         sscanf(argv[2], "%d", &client_port);
-    }
-    else if (argc > 1 && !strcmp(argv[1], "server")) {
+    } else if (argc > 1 && !strcmp(argv[1], "server")) {
         network_state.online_disable = false;
         network_state.is_server = true;
     }
@@ -91,14 +87,11 @@ i32 main(i32 argc, char* argv[]) {
     game_init();
     game_load_assets();
 
-
-
 #if !defined(WIN32) || defined(_MSC_VER) // MSCV and linux/mac
     if (!network_state.online_disable) {
         if (network_state.is_server == true) {
             ASSERT(server_init() == OK, " ");
-        }
-        else {
+        } else {
             ASSERT(client_init(client_port) == OK, " ");
         }
     }
@@ -149,7 +142,6 @@ i32 main(i32 argc, char* argv[]) {
 #endif
             game_process();
 
-
 #ifdef DEBUG_ENABLED
         debug_before_render();
 #endif
@@ -163,4 +155,4 @@ i32 main(i32 argc, char* argv[]) {
     game_teardown();
 
     return 0;
-    }
+}

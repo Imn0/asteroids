@@ -1,7 +1,7 @@
 #include "physics.h"
 #include "game.h"
 
-void decelerate_v2f32(V2f32 *v, f32 decel_rate) {
+void decelerate_v2f32(V2f32* v, f32 decel_rate) {
 
     // deaceleration
     i32 i = 0;
@@ -13,8 +13,7 @@ void decelerate_v2f32(V2f32 *v, f32 decel_rate) {
             i = -1;
         }
         v->x += (i * decel_rate) * delta_time;
-    }
-    else {
+    } else {
         v->x = 0.0f;
     }
 
@@ -27,8 +26,7 @@ void decelerate_v2f32(V2f32 *v, f32 decel_rate) {
             i = -1;
         }
         v->y += (i * decel_rate) * delta_time;
-    }
-    else {
+    } else {
         v->y = 0.0f;
     }
 }

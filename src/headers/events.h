@@ -1,8 +1,8 @@
 #pragma once
 
-#include "entity.h"
-#include "common.h"
 #include "animation.h"
+#include "common.h"
+#include "entity.h"
 #include "ufo.h"
 
 typedef enum {
@@ -17,7 +17,7 @@ typedef enum {
 } EventType;
 
 typedef enum {
-    NONE, 
+    NONE,
     SPARKLE,
 } EntityRemoveAnimation;
 
@@ -60,16 +60,22 @@ typedef struct {
     } event;
 } Event;
 
+// TODO add handling generic event here
+// TODO clear up naming scheme
+
 void add_event_starting_rocks();
 
 /**
- * @brief Spawns a rock with given size at the edge of the screen away from players
+ * @brief Spawns a rock with given size at the edge of the screen away from
+ * players
  *
  * @param size
  */
 void add_event_random_rock(RockSize size);
 void add_event_random_rocks(i32 count, RockSize size);
-void add_event_from_rock_kill(RockSize killed_rock_size, V2f32 killed_pos, V2f32 killed_velocity);
+void add_event_from_rock_kill(RockSize killed_rock_size,
+                              V2f32 killed_pos,
+                              V2f32 killed_velocity);
 
 void register_event_local(Event* e);
 void register_event_remote(Event* e);
@@ -77,7 +83,8 @@ void register_event_remote(Event* e);
 Entity* create_bullet_from_event(Event* e);
 Entity* create_rock_from_event(Event* e);
 
-void add_event_ufo(UfoForm form);
+void add_event_ufo_spawn(UfoForm form);
+void add_event_ufo_kill(EventUfoKill args);
 void make_ufo_from_event(Event* e, Ufo* ufo);
 Animation* make_animation_from_event(Event* e);
 

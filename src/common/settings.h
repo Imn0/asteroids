@@ -6,7 +6,7 @@
 #define WINDOW_SCALING
 #define LINE_THICKNESS 2
 // #define VSYNC_ENABLED
-#define DEBUG_ENABLED 
+#define DEBUG_ENABLED
 #define BACKGROUND_COLOR 0x15, 0x15, 0x15
 // #define SOFTWARE_RENDERING
 #define LOCAL_PLAYER_COLOR 0xff, 0xff, 0xff

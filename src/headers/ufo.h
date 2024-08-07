@@ -2,11 +2,7 @@
 
 #include "common.h"
 
-typedef enum {
-    UFO_NONE,
-    UFO_BIG,
-    UFO_SMALL
-} UfoForm;
+typedef enum { UFO_NONE, UFO_BIG, UFO_SMALL } UfoForm;
 
 typedef struct {
     UfoForm form;
@@ -24,8 +20,6 @@ typedef struct {
 
 extern Ufo game_ufo;
 
-
 void ufo_init(UfoCreateArgs args, Ufo* ufo);
 void ufo_update(Ufo* ufo);
 void ufo_render(Ufo* ufo);
-

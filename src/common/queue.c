@@ -2,7 +2,7 @@
 #include "netcode.h"
 #include "player.h"
 
-func queue_init(Queue *queue, usize max_size) {
+func queue_init(Queue* queue, usize max_size) {
     queue->front = queue->rear = NULL;
     queue->size = 0;
     queue->max_size = max_size;
@@ -17,7 +17,7 @@ func queue_init(Queue *queue, usize max_size) {
     return OK;
 }
 
-usize queue_remove_front(Queue *queue, usize count) {
+usize queue_remove_front(Queue* queue, usize count) {
 
     mtx_lock(&queue->mutex);
 
@@ -40,7 +40,7 @@ usize queue_remove_front(Queue *queue, usize count) {
     return removed;
 }
 
-func queue_enqueue(Queue *queue, void* data) {
+func queue_enqueue(Queue* queue, void* data) {
     QueueNode* new_node = malloc(sizeof(QueueNode));
     if (!new_node)
         return ERR_GENRIC_BAD;
@@ -51,19 +51,17 @@ func queue_enqueue(Queue *queue, void* data) {
 
     // Check if the queue has reached its maximum size
     if (queue->size >= queue->max_size) {
-        usize  to_remove = queue->max_size / 4;
+        usize to_remove = queue->max_size / 4;
         mtx_unlock(&queue->mutex);
 
         queue_remove_front(queue, to_remove);
 
         mtx_lock(&queue->mutex);
-
     }
 
     if (queue->rear == NULL) {
         queue->front = queue->rear = new_node;
-    }
-    else {
+    } else {
         queue->rear->next = new_node;
         queue->rear = new_node;
     }
@@ -74,12 +72,12 @@ func queue_enqueue(Queue *queue, void* data) {
     return OK;
 }
 
-func queue_dequeue(Queue *queue, void** data) {
+func queue_dequeue(Queue* queue, void** data) {
 
     mtx_lock(&queue->mutex);
     if (queue->front == NULL) {
         mtx_unlock(&queue->mutex);
-        *data = NULL; 
+        *data = NULL;
         return CONTAINER_EMPTY; // Queue is empty
     }
 
@@ -100,7 +98,7 @@ func queue_dequeue(Queue *queue, void** data) {
     return OK;
 }
 
-void queue_destroy(Queue *queue) {
+void queue_destroy(Queue* queue) {
     mtx_lock(&queue->mutex);
     while (queue->front != NULL) {
         QueueNode* temp = queue->front;
@@ -110,5 +108,4 @@ void queue_destroy(Queue *queue) {
     mtx_unlock(&queue->mutex);
     mtx_destroy(&queue->mutex);
     cnd_destroy(&queue->not_empty);
-
 }

@@ -11,8 +11,7 @@ typedef struct {
     i32 id;
 } EntityCommon;
 
-
-// Bullet 
+// Bullet
 
 typedef enum {
     BULLET_LOCAL,
@@ -32,17 +31,12 @@ typedef struct {
     f32 ttl;
     V2f32 last_position;
     BulletOrigin bullet_origin;
-    
-} EntityBullet;
 
+} EntityBullet;
 
 // Rock
 
-typedef enum {
-    ROCK_SMALL = 0,
-    ROCK_MEDIUM,
-    ROCK_BIG
-} RockSize;
+typedef enum { ROCK_SMALL = 0, ROCK_MEDIUM, ROCK_BIG } RockSize;
 
 typedef struct {
     V2f32 position, initial_velocity;
@@ -71,7 +65,6 @@ typedef struct {
     } phantom;
     RockSize rock_size;
 } EntityRock;
-
 
 typedef struct {
     EntityType type;

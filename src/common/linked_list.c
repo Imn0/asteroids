@@ -1,6 +1,6 @@
 #include "common.h"
 
-func ll_iter_assign(LinkedListIter *iter, LinkedList *list) {
+func ll_iter_assign(LinkedListIter* iter, LinkedList* list) {
     if (list->size == 0) {
         iter->node = NULL;
         return CONTAINER_EMPTY;
@@ -10,8 +10,8 @@ func ll_iter_assign(LinkedListIter *iter, LinkedList *list) {
     return OK;
 }
 
-func ll_iter_assign_direction(LinkedListIter *iter,
-                              LinkedList *list,
+func ll_iter_assign_direction(LinkedListIter* iter,
+                              LinkedList* list,
                               IterDirection direction) {
     if (list->size == 0) {
         iter->node = NULL;
@@ -19,59 +19,55 @@ func ll_iter_assign_direction(LinkedListIter *iter,
     }
     if (direction == LL_ITER_H_TO_T) {
         iter->node = list->head;
-    }
-    else {
+    } else {
         iter->node = list->tail;
     }
     iter->direction = direction;
     return OK;
 }
 
-bool ll_iter_end(LinkedListIter *iter) { return iter->node == NULL; }
+bool ll_iter_end(LinkedListIter* iter) { return iter->node == NULL; }
 
-func ll_iter_next(LinkedListIter *iter) {
+func ll_iter_next(LinkedListIter* iter) {
     if (iter->node == NULL) {
         return CONTAINER_EMPTY;
     }
     if (iter->direction == LL_ITER_H_TO_T) {
         iter->node = iter->node->next;
-    }
-    else {
+    } else {
         iter->node = iter->node->prev;
     }
     return OK;
 }
 
-func ll_iter_prev(LinkedListIter *iter) {
+func ll_iter_prev(LinkedListIter* iter) {
     if (iter->node == NULL) {
         return CONTAINER_EMPTY;
     }
     if (iter->direction == LL_ITER_H_TO_T) {
         iter->node = iter->node->prev;
-    }
-    else {
+    } else {
         iter->node = iter->node->next;
     }
     return OK;
 }
 
-void ll_iter_strip(LinkedListIter *iter) { iter->node = NULL; }
+void ll_iter_strip(LinkedListIter* iter) { iter->node = NULL; }
 
-void* ll_iter_peek(LinkedListIter *iter) {
+void* ll_iter_peek(LinkedListIter* iter) {
     if (iter->node == NULL) {
         return NULL;
     }
     return iter->node->data;
 }
 
-void ll_init(LinkedList *list) {
+void ll_init(LinkedList* list) {
     list->head = NULL;
     list->tail = NULL;
     list->size = 0;
 }
 
-func ll_push_back_dtor(LinkedList *list, void* data,
-                       void (*dtor)(void* data)) {
+func ll_push_back_dtor(LinkedList* list, void* data, void (*dtor)(void* data)) {
     LinkedListNode* node = malloc(sizeof(LinkedListNode));
     if (node == NULL) {
         return ERR_GENRIC_BAD;
@@ -82,8 +78,7 @@ func ll_push_back_dtor(LinkedList *list, void* data,
     node->prev = list->tail;
     if (list->size == 0) {
         list->head = node;
-    }
-    else {
+    } else {
         list->tail->next = node;
     }
     list->tail = node;
@@ -91,11 +86,12 @@ func ll_push_back_dtor(LinkedList *list, void* data,
     return ERR_OK;
 }
 
-func ll_push_back(LinkedList *list, void* data) {
+func ll_push_back(LinkedList* list, void* data) {
     return ll_push_back_dtor(list, data, &free);
 }
 
-func ll_push_front_dtor(LinkedList *list, void* data,
+func ll_push_front_dtor(LinkedList* list,
+                        void* data,
                         void (*dtor)(void* data)) {
     LinkedListNode* node = malloc(sizeof(LinkedListNode));
     if (node == NULL) {
@@ -108,8 +104,7 @@ func ll_push_front_dtor(LinkedList *list, void* data,
 
     if (list->size == 0) {
         list->tail = node;
-    }
-    else {
+    } else {
         list->head->prev = node;
     }
     list->head = node;
@@ -117,12 +112,11 @@ func ll_push_front_dtor(LinkedList *list, void* data,
     return OK;
 }
 
-func ll_push_front(LinkedList *list, void* data) {
+func ll_push_front(LinkedList* list, void* data) {
     return ll_push_front_dtor(list, data, &free);
 }
 
-func ll_iter_remove_at(LinkedList *list,
-                       LinkedListIter *iter) {
+func ll_iter_remove_at(LinkedList* list, LinkedListIter* iter) {
     if (iter->node == NULL) {
         return CONTAINER_EMPTY;
     }
@@ -130,20 +124,18 @@ func ll_iter_remove_at(LinkedList *list,
     LinkedListNode* node_to_remove = iter->node;
 
     LinkedListNode* next_node = (iter->direction == LL_ITER_H_TO_T)
-        ? node_to_remove->next
-        : node_to_remove->prev;
+                                        ? node_to_remove->next
+                                        : node_to_remove->prev;
 
     if (node_to_remove->prev) {
         node_to_remove->prev->next = node_to_remove->next;
-    }
-    else {
+    } else {
         list->head = node_to_remove->next;
     }
 
     if (node_to_remove->next) {
         node_to_remove->next->prev = node_to_remove->prev;
-    }
-    else {
+    } else {
         list->tail = node_to_remove->prev;
     }
 
@@ -155,7 +147,7 @@ func ll_iter_remove_at(LinkedList *list,
 
     return OK;
 }
-func ll_pop_back(LinkedList *list, void** data) {
+func ll_pop_back(LinkedList* list, void** data) {
     if (list->size == 0) {
         return CONTAINER_EMPTY;
     }
@@ -164,8 +156,7 @@ func ll_pop_back(LinkedList *list, void** data) {
     if (list->size == 1) {
         list->head = NULL;
         list->tail = NULL;
-    }
-    else {
+    } else {
         list->tail = node->prev;
         list->tail->next = NULL;
     }
@@ -174,7 +165,7 @@ func ll_pop_back(LinkedList *list, void** data) {
     return OK;
 }
 
-func ll_pop_front(LinkedList *list, void** data) {
+func ll_pop_front(LinkedList* list, void** data) {
     if (list->size == 0) {
         return CONTAINER_EMPTY;
     }
@@ -183,8 +174,7 @@ func ll_pop_front(LinkedList *list, void** data) {
     if (list->size == 1) {
         list->head = NULL;
         list->tail = NULL;
-    }
-    else {
+    } else {
         list->head = node->next;
         list->head->prev = NULL;
     }
@@ -193,7 +183,7 @@ func ll_pop_front(LinkedList *list, void** data) {
     return OK;
 }
 
-void ll_destroy(LinkedList *list) {
+void ll_destroy(LinkedList* list) {
     LinkedListNode* node = list->head;
     while (node != NULL) {
         LinkedListNode* next = node->next;
