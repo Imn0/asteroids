@@ -107,36 +107,7 @@ i32 main(i32 argc, char* argv[]) {
     f32 remote_update_accumulator = 0.0f;
     const f32 remote_update_interval = 1.0f / REMOTE_UPDATE_FREQUENCY;
 
-    if (network_state.is_server) {
-
-        for (i32 i = 0; i < 8; i++) {
-            u8 seed = rand_i32(0, 255);
-
-            Event* e = malloc(sizeof(Event));
-            e->type = EVENT_TYPE_NEW_ROCK;
-            EventRock* rock = &e->event.rock;
-            *rock = (EventRock) {
-                .rock_size = rand_i32(1, 2),
-                .jaggedness = rand_float(0.7f, 0.95f),
-                .num_vertices = rand_i32(8, ASTEROID_MAX_POINTS - 1),
-                .position = (V2f32) { .x = rand_float_range(2,
-                                     0.0f, WINDOW_WIDTH / 2 - 50.0f,
-                                     WINDOW_WIDTH / 2 + 50.0f,
-                                     (f32)WINDOW_WIDTH),
-                                     .y = rand_float_range(2,
-                                     0.0f, WINDOW_HEIGHT / 2 - 50.0f,
-                                     WINDOW_HEIGHT / 2 + 50.0f,
-                                     (f32)WINDOW_HEIGHT) },
-                .initial_velocity = (V2f32) { .x = rand_float(-25.0f, 25.0f),
-                                     .y = rand_float(-25.0f, 25.0f) },
-                .seed = seed,
-                .id = rand() + 1
-            };
-
-            register_event_local(e);
-            register_event_remote(e);
-        }
-    }
+    
 
     SDL_version a;
     SDL_GetVersion(&a);

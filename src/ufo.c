@@ -34,6 +34,12 @@ void ufo_shoot(Ufo* ufo) {
 
     V2f32 player_pos = local_player.position;
     V2f32 player_vel = local_player.velocity;
+
+    if (!network_state.online_disable && rand_float(0, 1) < 0.5f) {
+        player_pos = remote_player.position;
+        player_vel = remote_player.velocity;
+    }
+
     f32 va_x = game_ufo.velocity.x, va_y = game_ufo.velocity.y, xa = game_ufo.position.x,
         ya = game_ufo.position.y, xb = player_pos.x, yb = player_pos.y, vb_x = player_vel.x,
         vb_y = player_vel.y;
@@ -55,7 +61,13 @@ void ufo_shoot(Ufo* ufo) {
         d = a + (b - a) / gr;
     }
 
-    f32 angle_deg = rad_to_deg((b+a)/2);
+    f32 angle_deg = rad_to_deg((b + a) / 2);
+
+    if (game_ufo.form == UFO_BIG) {
+        angle_deg += rand_float(-20, 20);
+    } else if (game_ufo.form == UFO_SMALL) {
+        angle_deg += rand_float(-5, 5);
+    }
 
     add_event_shoot(ufo->position, angle_deg, ufo->velocity, BULLET_UFO);
 }

@@ -71,6 +71,25 @@ void game_init() {
     game_ufo.ufo_timer = 0.0f;
 
     state.new_rock_timer = 3.0f;
+
+    if (network_state.is_server) {
+
+        for (i32 i = 0; i < 8; i++) {
+            add_event_new_rock(rand_i32(1, 2),
+                               (V2f32) { .x = rand_float_range(2,
+                                                               0.0f,
+                                                               WINDOW_WIDTH / 2 - 50.0f,
+                                                               WINDOW_WIDTH / 2 + 50.0f,
+                                                               (f32)WINDOW_WIDTH),
+                                         .y = rand_float_range(2,
+                                                               0.0f,
+                                                               WINDOW_HEIGHT / 2 - 50.0f,
+                                                               WINDOW_HEIGHT / 2 + 50.0f,
+                                                               (f32)WINDOW_HEIGHT) },
+                               (V2f32) { .x = rand_float(-25.0f, 25.0f),
+                                         .y = rand_float(-25.0f, 25.0f) });
+        }
+    }
 }
 
 void game_load_assets() {
