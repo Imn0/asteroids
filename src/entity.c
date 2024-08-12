@@ -4,7 +4,7 @@
 #include "game.h"
 #include "netcode.h"
 
-Entity* entity_create_rock(EntityCreateRockArgs args) {
+Entity* entity_create_rock(EntityCreateRockArgs* args) {
 
     Entity* entity = malloc(sizeof(Entity));
     entity->type = ENTITY_ROCK;
@@ -12,27 +12,27 @@ Entity* entity_create_rock(EntityCreateRockArgs args) {
     EntityRock* e = &entity->data.rock;
     *e = (EntityRock) { 0 };
     e->angle_deg = 0.0f;
-    e->num_vertices = args.num_vertices;
-    e->common.position = args.position;
-    e->common.velocity = args.initial_velocity;
+    e->num_vertices = args->num_vertices;
+    e->common.position = args->position;
+    e->common.velocity = args->initial_velocity;
 
-    u8 rng_idx = args.seed;
+    u8 rng_idx = args->seed;
 
     i32 sign = rand_i32_seed(0, 1, rng_idx) == 1 ? 1 : -1;
 
     e->rotation_speed = sign * (ASTEROID_MAX_ROTATION_SPEED -
                                 rand_float_seed(-7.0f, 0.0f, rng_idx));
-    e->rock_size = args.rock_size;
-    e->base_radius = rock_sizes[args.rock_size];
+    e->rock_size = args->rock_size;
+    e->base_radius = rock_sizes[args->rock_size];
 
-    ASSERT(args.id != 0, "invaild or no id was given %d\n", args.id);
-    e->common.id = args.id;
+    ASSERT(args->id != 0, "invaild or no id was given %d\n", args->id);
+    e->common.id = args->id;
 
-    for (i32 i = 0; i < args.num_vertices; i++) {
-        f32 angle = (f32)i / args.num_vertices * TAU;
+    for (i32 i = 0; i < args->num_vertices; i++) {
+        f32 angle = (f32)i / args->num_vertices * TAU;
         f32 radius = e->base_radius *
-                     (1.0f - args.jaggedness +
-                      args.jaggedness * rand_float_seed(0, 1.0f, rng_idx));
+                     (1.0f - args->jaggedness +
+                      args->jaggedness * rand_float_seed(0, 1.0f, rng_idx));
         e->vertices[i].x = radius * cosf(angle);
         e->vertices[i].y = radius * sinf(angle);
         rng_idx += 1;
@@ -41,7 +41,7 @@ Entity* entity_create_rock(EntityCreateRockArgs args) {
     return entity;
 }
 
-Entity* entity_create_bullet(EntityCreateBulletArgs args) {
+Entity* entity_create_bullet(EntityCreateBulletArgs* args) {
 
     Entity* entity = malloc(sizeof(Entity));
     entity->type = ENTITY_BULLET;
@@ -49,17 +49,17 @@ Entity* entity_create_bullet(EntityCreateBulletArgs args) {
     EntityBullet* e = &entity->data.bullet;
     *e = (EntityBullet) { 0 };
 
-    ASSERT(args.id != 0, "invaild or no id was given %d\n", args.id);
-    e->common.id = args.id;
+    ASSERT(args->id != 0, "invaild or no id was given %d\n", args->id);
+    e->common.id = args->id;
 
-    e->common.position = args.position;
-    e->last_position = args.position;
-    e->common.velocity.x = sinf(deg_to_rad(args.angle_deg)) * BULLET_SPEED +
-                           args.initial_velocity.x;
-    e->common.velocity.y = -cosf(deg_to_rad(args.angle_deg)) * BULLET_SPEED +
-                           args.initial_velocity.y;
+    e->common.position = args->position;
+    e->last_position = args->position;
+    e->common.velocity.x = sinf(deg_to_rad(args->angle_deg)) * BULLET_SPEED +
+                           args->initial_velocity.x;
+    e->common.velocity.y = -cosf(deg_to_rad(args->angle_deg)) * BULLET_SPEED +
+                           args->initial_velocity.y;
     e->ttl = BULLET_INITIAL_TTL;
-    e->bullet_origin = args.bullet_origin;
+    e->bullet_origin = args->bullet_origin;
 
     return entity;
 }

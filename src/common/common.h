@@ -59,20 +59,18 @@ i32 rand_i32_seed(i32 min, i32 max, u8 seed);
 f32 rand_float_range(i32 num_ranges, ...);
 f32 rand_float_range_seed(u8 seed, i32 num_ranges, ...);
 
-#define min(_a, _b)                                                            \
-    ({                                                                         \
-        __typeof__(_a) __a = (_a), __b = (_b);                                 \
-        __a < __b ? __a : __b;                                                 \
+#define min(_a, _b)                                                                                \
+    ({                                                                                             \
+        __typeof__(_a) __a = (_a), __b = (_b);                                                     \
+        __a < __b ? __a : __b;                                                                     \
     })
-#define max(_a, _b)                                                            \
-    ({                                                                         \
-        __typeof__(_a) __a = (_a), __b = (_b);                                 \
-        __a > __b ? __a : __b;                                                 \
+#define max(_a, _b)                                                                                \
+    ({                                                                                             \
+        __typeof__(_a) __a = (_a), __b = (_b);                                                     \
+        __a > __b ? __a : __b;                                                                     \
     })
 static inline f32 deg_to_rad(f32 d) { return d * (PI / 180.0f); }
-static inline f32 dot(V2f32 v0, V2f32 v1) {
-    return (v0.x * v1.x) + (v0.y * v1.y);
-}
+static inline f32 dot(V2f32 v0, V2f32 v1) { return (v0.x * v1.x) + (v0.y * v1.y); }
 static inline f32 length(V2f32 vl) { return sqrtf(dot(vl, vl)); }
 static inline f32 dist(V2f32 v0, V2f32 v1) {
     return length((V2f32) { .x = v1.x - v0.x, .y = v1.y - v0.y });
@@ -92,10 +90,10 @@ static inline V2f32 rotate_point(V2f32 point, V2f32 center, f32 angle_rad) {
     return rotated;
 }
 
-#define ASSERT(_e, ...)                                                        \
-    if (!(_e)) {                                                               \
-        fprintf(stderr, __VA_ARGS__);                                          \
-        exit(1);                                                               \
+#define ASSERT(_e, ...)                                                                            \
+    if (!(_e)) {                                                                                   \
+        fprintf(stderr, __VA_ARGS__);                                                              \
+        exit(1);                                                                                   \
     }
 
 /* FIFO QUEUE */
@@ -166,9 +164,7 @@ typedef struct {
 } LinkedListIter;
 
 func ll_iter_assign(LinkedListIter* iter, LinkedList* list);
-func ll_iter_assign_direction(LinkedListIter* iter,
-                              LinkedList* list,
-                              IterDirection direction);
+func ll_iter_assign_direction(LinkedListIter* iter, LinkedList* list, IterDirection direction);
 bool ll_iter_end(LinkedListIter* iter);
 func ll_iter_next(LinkedListIter* iter);
 func ll_iter_prev(LinkedListIter* iter);
@@ -230,3 +226,44 @@ static inline void gfx_render_thick_line(SDL_Renderer* renderer,
 
     SDL_RenderGeometry(renderer, NULL, vertices, 4, indices, 6);
 }
+
+static inline V2f32 get_random_screen_edge_position_away_from(f32 min_dist,
+                                                              V2f32 pos1,
+                                                              V2f32 pos2) {
+
+    i32 max_tries = 32;
+    i32 i = 0;
+
+    f32 x = 0.0f;
+    f32 y = 0.0f;
+
+    do {
+        i32 wall = rand_i32(0, 3);
+        switch (wall) {
+        case 0:
+            x = 0.0f;
+            y = rand_float(0.0f, WINDOW_HEIGHT);
+            break;
+        case 1:
+            x = WINDOW_WIDTH;
+            y = rand_float(0.0f, WINDOW_HEIGHT);
+            break;
+        case 2:
+            x = rand_float(0.0f, WINDOW_WIDTH);
+            y = 0.0f;
+            break;
+        case 3:
+        default:
+            x = rand_float(0.0f, WINDOW_WIDTH);
+            y = WINDOW_WIDTH;
+            break;
+        }
+        if (dist((V2f32) { x, y }, pos1) > min_dist &&
+            dist((V2f32) { x, y }, pos2) > min_dist) {
+            break;
+        }
+
+    } while (i++ < max_tries);
+    return (V2f32) { x, y };
+}
+

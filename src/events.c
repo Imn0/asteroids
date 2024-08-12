@@ -2,260 +2,92 @@
 #include "animation.h"
 #include "game.h"
 #include "netcode.h"
+#include "sfx.h"
 
-V2f32 get_random_screen_edge_position() {
-
-    f32 min_dist = 200.0f;
-    i32 max_tries = 32;
-    i32 i = 0;
-
-    f32 x = 0.0f;
-    f32 y = 0.0f;
-
-    do {
-        i32 wall = rand_i32(0, 3);
-        switch (wall) {
-        case 0:
-            x = 0.0f;
-            y = rand_float(0.0f, WINDOW_HEIGHT);
-            break;
-        case 1:
-            x = WINDOW_WIDTH;
-            y = rand_float(0.0f, WINDOW_HEIGHT);
-            break;
-        case 2:
-            x = rand_float(0.0f, WINDOW_WIDTH);
-            y = 0.0f;
-            break;
-        case 3:
-        default:
-            x = rand_float(0.0f, WINDOW_WIDTH);
-            y = WINDOW_WIDTH;
-            break;
-        }
-        if (dist((V2f32) { x, y }, local_player.position) > min_dist &&
-            (network_state.online_disable ||
-             dist((V2f32) { x, y }, remote_player.position) > min_dist)) {
-            break;
-        }
-
-    } while (i++ < max_tries);
-    return (V2f32) { x, y };
+func handle_event(Event* e) {
+    ASSERT(e != NULL, "??????\n");
+    funct_ret_t ret;
+    switch (e->type) {
+    case EVENT_REMOVE_ENTITY: {
+        ret = handle_event_remove_entity(&e->event.remove_entity);
+        break;
+    }
+    case EVENT_REMOTE_PLAYER_ADD_POINTS: {
+        ret = handle_event_remote_add_points(&e->event.add_points);
+        break;
+    }
+    case EVENT_TYPE_SHOOT: {
+        ret = handle_event_shoot(&e->event.shoot);
+        break;
+    }
+    case EVENT_TYPE_NEW_ROCK: {
+        ret = handle_event_new_rock(&e->event.rock);
+        break;
+    }
+    case EVENT_LOCAL_PLAYER_DEATH: {
+        ret = handle_event_local_player_death(&e->event.local_player_death);
+        break;
+    }
+    case EVENT_REMOTE_PLAYER_DEATH: {
+        ret = handle_event_remote_player_death(&e->event.remote_player_death);
+        break;
+    }
+    case EVENT_UFO_SPAWN: {
+        ret = handle_event_ufo_spawn(&e->event.ufo_spawn);
+        break;
+    }
+    case EVENT_UFO_KILL: {
+        ret = handle_event_ufo_kill(&e->event.ufo_kill);
+        break;
+    }
+    }
+    free(e);
+    return ret;
 }
 
-void add_event_ufo_kill(EventUfoKill args){
-    Event* e = malloc(sizeof(Event));
-    e->type = EVENT_UFO_KILL;
-    EventUfoKill* ufo = &e->event.ufo_kill;
-    *ufo = args;
-
-    register_event_local(e);
-    register_event_remote(e);
-}
-
-void add_event_ufo_spawn(UfoForm form) {
-    Event* e = malloc(sizeof(Event));
-
-    e->type = EVENT_UFO_SPAWN;
-
-    // TODO generate position and everything here
-    EventUfoSpawn* ufo = &e->event.ufo_spawn;
-    ufo->form = form;
-    ufo->position = get_random_screen_edge_position();
-    ufo->velocity = (V2f32) {
-        .x = rand_float(-25.0f, 25.0f) * (form == UFO_SMALL ? 1.78 : 1),
-        .y = rand_float(-25.0f, 25.0f) * (form == UFO_SMALL ? 1.78 : 1)
-    };
-
-    register_event_local(e);
-    register_event_remote(e);
-}
-
-void make_ufo_from_event(Event* e, Ufo* ufo) {
-    // ASSERT(network_state.is_server, "Client tried to spawn ufo.\n");
-    ASSERT(e->type == EVENT_UFO_SPAWN,
-           "Got event %d to make ufo from event.\n",
-           e->type);
-
-    ufo->angle_deg = 0.0f; // ??
-
-    ufo->form = e->event.ufo_spawn.form;
-    ufo->position = e->event.ufo_spawn.position;
-    ufo->velocity = e->event.ufo_spawn.velocity;
-    ufo->ufo_timer = 0.0f;
-    ufo->shoot_timer = 0.0f;
-}
-
-Animation* make_animation_from_event(Event* e) {
-    // TODO
-
-    Animation* a = create_sprinkle_animation(e->event.ufo_kill.ufo_position,
-                                             rand_i32(10, 20),
-                                             rand_i32(0, 255));
-    return a;
-}
-
-void add_event_starting_rocks() {
-
-    ASSERT(network_state.is_server,
-           "client tried to add add starting rocks.\n");
-
-    for (i32 i = 0; i < 7; i++) {
-        u8 seed = rand_i32(0, 255);
-
-        // ! functions to make events for spawning rocks
-
+void add_event_shoot(V2f32 position, f32 angle_deg, V2f32 velocity, BulletOrigin origin) {
+    if (origin == BULLET_LOCAL) {
         Event* e = malloc(sizeof(Event));
-        e->type = EVENT_TYPE_NEW_ROCK;
-        EventRock* rock = &e->event.rock;
-        *rock = (EventRock) {
-            .rock_size = rand_i32(1, 2),
-            .jaggedness = rand_float(0.7f, 0.95f),
-            .num_vertices = rand_i32(8, ASTEROID_MAX_POINTS - 1),
-            .position = (V2f32) { .x = rand_float_range(
-                                          2, 0.0f,
-                                 WINDOW_WIDTH / 2 - 50.0f,
-                                 WINDOW_WIDTH / 2 + 50.0f,
-                                 (f32)WINDOW_WIDTH),
-                                 .y = rand_float_range(
-                                          2, 0.0f,
-                                 WINDOW_HEIGHT / 2 - 50.0f,
-                                 WINDOW_HEIGHT / 2 + 50.0f,
-                                 (f32)WINDOW_HEIGHT) },
-            .initial_velocity = (V2f32) { .x = rand_float(-25.0f, 25.0f),
-                                 .y = rand_float(-25.0f, 25.0f) },
-            .seed = seed,
-            .id = rand() + 1
-        };
+        e->type = EVENT_TYPE_SHOOT;
 
+        i32 id = rand() + 1;
+
+        e->event.shoot = (EventShoot) { .position = position,
+                                        .angle_deg = angle_deg,
+                                        .initial_velocity = velocity,
+                                        .bullet_origin = BULLET_LOCAL,
+                                        .id = id };
+        Event* e_for_remote = malloc(sizeof(Event));
+        e_for_remote->type = EVENT_TYPE_SHOOT;
+        e_for_remote->event.shoot = (EventShoot) { .position = position,
+                                                   .angle_deg = angle_deg,
+                                                   .initial_velocity = velocity,
+                                                   .bullet_origin = BULLET_REMOTE,
+                                                   .id = id };
+        register_event_local(e);
+        register_event_remote(e_for_remote);
+    } else if (origin == BULLET_UFO) {
+        Event* e = malloc(sizeof(Event));
+        e->type = EVENT_TYPE_SHOOT;
+
+        i32 id = rand() + 1;
+
+        e->event.shoot = (EventShoot) { .position = position,
+                                        .angle_deg = angle_deg,
+                                        .initial_velocity = velocity,
+                                        .bullet_origin = BULLET_UFO,
+                                        .id = id };
         register_event_local(e);
         register_event_remote(e);
+    } else {
+        printf("tried to shoot remote bullet from local\n");
     }
 }
 
-void add_event_random_rock(RockSize size) {
-
-    ASSERT(network_state.is_server, "client tried to add a rock\n");
-
-    u8 seed = rand_i32(0, 255);
-
-    Event* e = malloc(sizeof(Event));
-    e->type = EVENT_TYPE_NEW_ROCK;
-    EventRock* rock = &e->event.rock;
-    *rock = (EventRock) {
-        .rock_size = size,
-        .jaggedness = rand_float(0.7f, 0.95f),
-        .num_vertices = rand_i32(8, ASTEROID_MAX_POINTS - 1),
-        .position = get_random_screen_edge_position(),
-        .initial_velocity = (V2f32) { .x = rand_float(-25.0f, 25.0f),
-                                     .y = rand_float(-25.0f, 25.0f) },
-        .seed = seed,
-        .id = rand() + 1
-    };
-    register_event_local(e);
-    register_event_remote(e);
-}
-
-void add_event_random_rocks(i32 count, RockSize size) {
-    for (i32 i = 0; i < count; i++) {
-        add_event_random_rock(size);
-    }
-}
-
-void add_event_from_rock_kill(RockSize killed_rock_size,
-                              V2f32 killed_pos,
-                              V2f32 killed_velocity) {
-
-    ASSERT(network_state.is_server, "client tried to add a rock kill\n");
-
-    if (killed_rock_size == ROCK_SMALL) {
-        return;
-    }
-
-    RockSize new_size = ROCK_MEDIUM;
-    if (killed_rock_size == ROCK_MEDIUM) {
-        new_size = ROCK_SMALL;
-    }
-
-    {
-        u8 seed = rand_i32(0, 255);
-        Event* e = malloc(sizeof(Event));
-        e->type = EVENT_TYPE_NEW_ROCK;
-        EventRock* rock = &e->event.rock;
-        *rock = (EventRock) {
-            .rock_size = new_size,
-            .jaggedness = rand_float(0.7f, 0.95f),
-            .num_vertices = rand_i32(8, ASTEROID_MAX_POINTS - 1),
-            .position = killed_pos,
-            .initial_velocity = (V2f32) { .x = rand_float_range(2,
-                                         -2.7,
-                                         -2.3,
-                                         2.3, 2.7) *
-                                               killed_velocity.y,
-                                         .y = rand_float_range(2,
-                                         -2.7,
-                                         -2.3,
-                                         2.3, 2.7) *
-                                               killed_velocity.x },
-            .seed = seed,
-            .id = rand() + 1
-        };
-
-        register_event_local(e);
-        register_event_remote(e);
-    }
-    {
-        u8 seed = rand_i32(0, 255);
-        Event* e = malloc(sizeof(Event));
-        e->type = EVENT_TYPE_NEW_ROCK;
-        EventRock* rock = &e->event.rock;
-        *rock = (EventRock) {
-            .rock_size = new_size,
-            .jaggedness = rand_float(0.7f, 0.95f),
-            .num_vertices = rand_i32(8, ASTEROID_MAX_POINTS - 1),
-            .position = killed_pos,
-            .initial_velocity = (V2f32) { .x = -rand_float_range(2,
-                                         -2.7,
-                                         -2.3,
-                                         2.3, 2.7) *
-                                               killed_velocity.y,
-                                         .y = -rand_float_range(2,
-                                         -2.7,
-                                         -2.3,
-                                         2.3, 2.7) *
-                                               killed_velocity.x },
-            .seed = seed,
-            .id = rand() + 1
-        };
-
-        register_event_local(e);
-        register_event_remote(e);
-    }
-}
-
-void register_event_local(Event* e) { queue_enqueue(&state.event_queue, e); }
-
-void register_event_remote(Event* e) {
-    if (!network_state.online_disable) {
-        Packet* packet = packet_from_event(e);
-        queue_enqueue(&network_state.transmit.tx_queue, packet);
-    }
-}
-
-Entity* create_bullet_from_event(Event* e) {
-    ASSERT(e->type == EVENT_TYPE_SHOOT,
-           "invalid event passed to create_bullet_from_event\n");
-    Entity* entity = entity_create_bullet(e->event.shoot);
-    return entity;
-}
-
-Entity* create_rock_from_event(Event* e) {
-    ASSERT(e->type == EVENT_TYPE_NEW_ROCK,
-           "invalid event passed to create_rock_from_event\n");
-    Entity* entity = entity_create_rock(
-            e->event.rock); // EntityCreateRockArgs is same as EventRock
-
-    return entity;
+func handle_event_shoot(EventShoot* e) {
+    play_sound(SFX_SHOOT);
+    Entity* bullet = entity_create_bullet((EntityCreateBulletArgs*)e);
+    return ll_push_back(&state.entities, bullet);
 }
 
 void remote_kill_entity(i32 id, EntityRemoveAnimation animation_type) {
@@ -268,12 +100,187 @@ void remote_kill_entity(i32 id, EntityRemoveAnimation animation_type) {
     register_event_remote(e);
 }
 
-void remote_add_points(i32 amount_to_add) {
-
-    ASSERT(network_state.is_server, "client tried to kill entity on remote\n");
-
+void add_event_remove_entity(i32 id, EntityRemoveAnimation animation_type) {
     Event* e = malloc(sizeof(Event));
-    e->type = EVENT_PLAYER_ADD_POINTS;
+    e->type = EVENT_REMOVE_ENTITY;
+    e->event.remove_entity.animation = animation_type;
+    e->event.remove_entity.id_to_remove = id;
+    register_event_local(e);
+    register_event_remote(e);
+}
+
+func handle_event_remove_entity(EventRemoveEntity* e) {
+    LinkedListIter iter;
+    ll_iter_assign(&iter, &state.entities);
+    funct_ret_t r = OK;
+    while (!ll_iter_end(&iter)) {
+        Entity* entity = ll_iter_peek(&iter);
+        if (entity->data.common.id == e->id_to_remove) {
+            entity->data.common.flags.remove = 1;
+
+            if (e->animation == SPARKLE) {
+                Animation* a = create_sprinkle_animation(entity->data.common.position,
+                                                         rand_i32(10, 20),
+                                                         rand_i32(0, 255));
+                r = ll_push_back(&state.animations, a);
+            }
+        }
+        ll_iter_next(&iter);
+    }
+    return r;
+}
+
+void remote_add_points(i32 amount_to_add) { add_event_remote_add_points(amount_to_add); }
+
+void add_event_remote_add_points(i32 amount_to_add) {
+    Event* e = malloc(sizeof(Event));
+    e->type = EVENT_REMOTE_PLAYER_ADD_POINTS;
     e->event.add_points.points_to_add = amount_to_add;
     register_event_remote(e);
+}
+
+// remote is now local
+func handle_event_remote_add_points(EventPlayerAddPoints* e) {
+    local_player.score += e->points_to_add;
+    return OK;
+}
+
+void add_event_new_rock(RockSize rock_size, V2f32 position, V2f32 velocity) {
+
+    u8 seed = rand_i32(0, 255);
+    Event* e = malloc(sizeof(Event));
+    e->type = EVENT_TYPE_NEW_ROCK;
+    EventRock* rock = &e->event.rock;
+    *rock = (EventRock) { .rock_size = rock_size,
+                          .jaggedness = rand_float(0.7f, 0.95f),
+                          .num_vertices = rand_i32(8, ASTEROID_MAX_POINTS - 1),
+                          .position = position,
+                          .initial_velocity = velocity,
+                          .seed = seed,
+                          .id = rand() + 1 };
+    register_event_local(e);
+    register_event_remote(e);
+}
+
+func handle_event_new_rock(EventRock* e) {
+    Entity* rock = entity_create_rock((EntityCreateRockArgs*)e);
+    return ll_push_front(&state.entities, rock);
+}
+
+void add_event_player_death(V2f32 position, V2f32 velocity, f32 angle_deg) {
+    add_event_local_player_death(position, velocity, angle_deg);
+    add_event_remote_player_death(position, velocity, angle_deg);
+}
+
+void add_event_local_player_death(V2f32 position, V2f32 velocity, f32 angle_deg) {
+    Event* e = malloc(sizeof(Event));
+    e->type = EVENT_LOCAL_PLAYER_DEATH;
+    e->event.local_player_death.angle_deg = angle_deg;
+    e->event.local_player_death.position = position;
+    e->event.local_player_death.velocity = velocity;
+
+    register_event_local(e);
+}
+
+func handle_event_local_player_death(EventLocalPlayerDeath* e) {
+    local_player.angle_deg = 0.0f;
+    local_player.position = (V2f32) { .x = WINDOW_WIDTH / 2, .y = WINDOW_HEIGHT / 2 };
+    local_player.velocity = (V2f32) { 0 };
+    local_player.ex_flags.invincible = 1;
+    if (local_player.lives == 0) {
+        local_player.flags.perma_dead = 1;
+    }
+
+    local_player.lives = max(local_player.lives - 1, 0);
+
+    local_player.invincibility_timer = 3.0f;
+    local_player.flags.invisible = 1;
+    play_sound(SFX_DEATH);
+    Animation* a = create_player_death_animation(e->position,
+                                                 e->velocity,
+                                                 e->angle_deg,
+                                                 (SDL_Color) { LOCAL_PLAYER_COLOR, 255 });
+
+    return ll_push_back(&state.animations, a);
+}
+
+void add_event_remote_player_death(V2f32 position, V2f32 velocity, f32 angle_deg) {
+    Event* e_remote = malloc(sizeof(Event));
+    e_remote->type = EVENT_REMOTE_PLAYER_DEATH;
+    e_remote->event.remote_player_death.angle_deg = angle_deg;
+    e_remote->event.remote_player_death.position = position;
+    e_remote->event.remote_player_death.velocity = velocity;
+
+    register_event_remote(e_remote);
+}
+
+func handle_event_remote_player_death(EventRemotePlayerDeath* e) {
+    play_sound(SFX_DEATH);
+    Animation* a = create_player_death_animation(e->position,
+                                                 e->velocity,
+                                                 e->angle_deg,
+                                                 (SDL_Color) { REMOTE_PLAYER_COLOR, 255 });
+
+    return ll_push_back(&state.animations, a);
+}
+
+void add_event_ufo_spawn(UfoForm form, V2f32 position, f32 speed, f32 direction_deg) {
+    Event* e = malloc(sizeof(Event));
+
+    e->type = EVENT_UFO_SPAWN;
+
+    EventUfoSpawn* ufo = &e->event.ufo_spawn;
+    ufo->form = form;
+    ufo->position = position;
+
+    f32 x = sinf(deg_to_rad(direction_deg)) * speed;
+    f32 y = -cosf(deg_to_rad(direction_deg)) * speed;
+    ufo->velocity = (V2f32) { x, y };
+
+    register_event_local(e);
+    register_event_remote(e);
+}
+func handle_event_ufo_spawn(EventUfoSpawn* e) {
+    game_ufo.angle_deg = 0.0f; // ??
+
+    game_ufo.form = e->form;
+    game_ufo.position = e->position;
+    game_ufo.velocity = e->velocity;
+    game_ufo.ufo_timer = 0.0f;
+    game_ufo.shoot_timer = 0.0f;
+
+    return OK;
+}
+
+void add_event_ufo_kill(V2f32 ufo_position, V2f32 ufo_velocity, V2f32 bullet_velocity) {
+    Event* e = malloc(sizeof(Event));
+    e->type = EVENT_UFO_KILL;
+    EventUfoKill* ufo = &e->event.ufo_kill;
+    ufo->bullet_velocity = bullet_velocity;
+    ufo->ufo_position = ufo_position;
+    ufo->ufo_velocity = ufo_velocity;
+
+    register_event_local(e);
+    register_event_remote(e);
+}
+func handle_event_ufo_kill(EventUfoKill* e) {
+
+    // TODO fancy animation
+    funct_ret_t ret;
+    Animation* a = create_sprinkle_animation(e->ufo_position, rand_i32(10, 20), rand_i32(0, 255));
+    ret = ll_push_back(&state.animations, a);
+
+    game_ufo.form = UFO_NONE;
+    game_ufo.ufo_timer = 0.0f;
+
+    return ret;
+}
+
+void register_event_local(Event* e) { queue_enqueue(&state.event_queue, e); }
+
+void register_event_remote(Event* e) {
+    if (!network_state.online_disable) {
+        Packet* packet = packet_from_event(e);
+        queue_enqueue(&network_state.transmit.tx_queue, packet);
+    }
 }

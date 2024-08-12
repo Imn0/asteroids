@@ -75,8 +75,8 @@ typedef struct {
     } data;
 } Entity;
 
-Entity* entity_create_rock(EntityCreateRockArgs args);
-Entity* entity_create_bullet(EntityCreateBulletArgs args);
+Entity* entity_create_rock(EntityCreateRockArgs* args);
+Entity* entity_create_bullet(EntityCreateBulletArgs* args);
 
 extern void entity_update(Entity* entity);
 extern void entity_render(Entity* entity);

@@ -25,26 +25,22 @@
 #include "ufo.h"
 
 Ufo game_ufo;
+void add_event_from_rock_kill(RockSize killed_rock_size, V2f32 killed_pos, V2f32 killed_velocity);
 
 void game_init() {
-    ASSERT(!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_AUDIO |
-                     SDL_INIT_TIMER),
+    ASSERT(!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_AUDIO | SDL_INIT_TIMER),
            "Failed to init SDL %s\n",
            SDL_GetError());
 
     char window_name[256];
-    snprintf(window_name,
-             256,
-             "Asteroids %s",
-             network_state.is_server ? "Server" : "Client");
+    snprintf(window_name, 256, "Asteroids %s", network_state.is_server ? "Server" : "Client");
 
     state.window = SDL_CreateWindow(window_name,
                                     SDL_WINDOWPOS_CENTERED,
                                     SDL_WINDOWPOS_CENTERED,
                                     WINDOW_WIDTH,
                                     WINDOW_HEIGHT,
-                                    SDL_WINDOW_ALLOW_HIGHDPI |
-                                            SDL_WINDOW_RESIZABLE);
+                                    SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE);
     ASSERT(state.window, "Failed to init window %s\n", SDL_GetError());
 
     state.renderer = SDL_CreateRenderer(state.window,
@@ -80,10 +76,7 @@ void game_init() {
 void game_load_assets() {
     char* exe_path = SDL_GetBasePath();
     char font_path[1024];
-    snprintf(font_path,
-             sizeof(font_path),
-             "%s/../assets/fonts/Montserrat-Regular.ttf",
-             exe_path);
+    snprintf(font_path, sizeof(font_path), "%s/../assets/fonts/Montserrat-Regular.ttf", exe_path);
 
     ASSERT(TTF_Init() == 0, "TTF failed to initialize");
     state.font = TTF_OpenFont(font_path, 32);
@@ -111,11 +104,11 @@ void game_get_input() {
                 break;
 #ifdef DEBUG_ENABLED
             case SDLK_F1: {
-                Animation* a = create_player_death_animation(
-                        local_player.position,
-                        local_player.velocity,
-                        local_player.angle_deg,
-                        (SDL_Color) { LOCAL_PLAYER_COLOR, 255 });
+                Animation* a = create_player_death_animation(local_player.position,
+                                                             local_player.velocity,
+                                                             local_player.angle_deg,
+                                                             (SDL_Color) { LOCAL_PLAYER_COLOR,
+                                                                           255 });
                 local_player.flags.invisible = 1;
                 ll_push_back(&state.animations, a);
                 break;
@@ -166,8 +159,16 @@ void game_server_process() {
     state.new_rock_timer -= delta_time;
     if (state.new_rock_timer < 0) {
         // TODO figure out the timer
-        state.new_rock_timer = 10.0f;
-        add_event_random_rock(ROCK_BIG);
+        state.new_rock_timer = 7.0f;
+
+        add_event_new_rock(
+                ROCK_BIG,
+                get_random_screen_edge_position_away_from(150.0f,
+                                                          local_player.position,
+                                                          network_state.online_disable
+                                                                  ? local_player.position
+                                                                  : remote_player.position),
+                (V2f32) { .x = rand_float(-25.0f, 25.0f), .y = rand_float(-25.0f, 25.0f) });
     }
     // UFO
     u32 max_score = local_player.score;
@@ -177,20 +178,30 @@ void game_server_process() {
         }
     }
 
+    UfoForm ufo_to_add = UFO_NONE;
+
     if (max_score < 10000) {
         if (game_ufo.form == UFO_NONE && game_ufo.ufo_timer > 1.0f) {
-            add_event_ufo_spawn(UFO_SMALL ? rand_float(0.0f, 1.0f) < 0.5f
-                                          : UFO_BIG);
+            ufo_to_add = rand_float(0.0f, 1.0f) < 0.5f ? UFO_SMALL : UFO_BIG;
         }
     } else if (max_score < 25000) {
-        if (game_ufo.form == UFO_NONE && game_ufo.ufo_timer > 3.0f) {
-            add_event_ufo_spawn(UFO_SMALL ? rand_float(0.0f, 1.0f) < 0.75f
-                                          : UFO_BIG);
+        if (game_ufo.form == UFO_NONE && game_ufo.ufo_timer > 2.0f) {
+            ufo_to_add = rand_float(0.0f, 1.0f) < 0.75f ? UFO_BIG : UFO_SMALL;
         }
     } else {
-        if (game_ufo.form == UFO_NONE && game_ufo.ufo_timer > 3.0f) {
-            add_event_ufo_spawn(UFO_SMALL);
+        if (game_ufo.form == UFO_NONE && game_ufo.ufo_timer > 2.0f) {
+            ufo_to_add = UFO_SMALL;
         }
+    }
+    if (ufo_to_add != UFO_NONE) {
+        add_event_ufo_spawn(ufo_to_add,
+                            get_random_screen_edge_position_away_from(
+                                    100.0f,
+                                    local_player.position,
+                                    network_state.online_disable ? local_player.position
+                                                                 : remote_player.position),
+                            rand_float(50.0f, 75.0f) * (ufo_to_add == UFO_SMALL ? 2.78 : 1),
+                            rand_float(0, 360));
     }
 }
 
@@ -209,92 +220,8 @@ void game_process() {
     Event* e = NULL;
     funct_ret_t ret;
     while (queue_dequeue(&state.event_queue, (void*)&e) == OK) {
-        switch (e->type) {
-        case EVENT_TYPE_SHOOT: {
-            Entity* bullet = create_bullet_from_event(e);
-            ret = ll_push_back(&state.entities, bullet);
-            break;
-        }
-        case EVENT_TYPE_NEW_ROCK: {
-            Entity* rock = create_rock_from_event(e);
-            ret = ll_push_front(&state.entities, rock);
-            break;
-        }
-        case EVENT_REMOTE_PLAYER_DEATH: {
-            play_sound(SFX_DEATH);
-            Animation* a = create_player_death_animation(
-                    e->event.player_death.position,
-                    e->event.player_death.velocity,
-                    e->event.player_death.angle_deg,
-                    (SDL_Color) { REMOTE_PLAYER_COLOR, 255 });
-
-            ll_push_back(&state.animations, a);
-
-            break;
-        }
-        case EVENT_LOCAL_PLAYER_DEATH: {
-            play_sound(SFX_DEATH);
-            Animation* a = create_player_death_animation(
-                    e->event.player_death.position,
-                    e->event.player_death.velocity,
-                    e->event.player_death.angle_deg,
-                    (SDL_Color) { LOCAL_PLAYER_COLOR, 255 });
-
-            ll_push_back(&state.animations, a);
-
-            break;
-        }
-        case EVENT_REMOVE_ENTITY: {
-            ASSERT(!network_state.is_server,
-                   "server was comamnded to remvoe entity");
-
-            LinkedListIter iter;
-            ll_iter_assign(&iter, &state.entities);
-            while (!ll_iter_end(&iter)) {
-                Entity* entity = ll_iter_peek(&iter);
-                if (entity->data.common.id ==
-                    e->event.remove_entity.id_to_remove) {
-                    entity->data.common.flags.remove = 1;
-
-                    if (e->event.remove_entity.animation == SPARKLE) {
-                        Animation* a = create_sprinkle_animation(
-                                entity->data.common.position,
-                                rand_i32(10, 20),
-                                rand_i32(0, 255));
-                        ll_push_back(&state.animations, a);
-                    }
-                }
-                ll_iter_next(&iter);
-            }
-            break;
-        }
-        case EVENT_PLAYER_ADD_POINTS: {
-            ASSERT(!network_state.is_server,
-                   "server was comamnded to add points to itself");
-            local_player.score += e->event.add_points.points_to_add;
-            break;
-        }
-        case EVENT_UFO_KILL: {
-            
-            // TODO, fancy animation and reesting ufo
-            Animation* a = create_sprinkle_animation(
-                    e->event.ufo_kill.ufo_position,
-                    rand_i32(10, 20),
-                    rand_i32(0, 255));
-            ll_push_back(&state.animations, a);
-
-            game_ufo.form = UFO_NONE;
-            game_ufo.ufo_timer = 0.0f;
-
-            break;
-        }
-        case EVENT_UFO_SPAWN: {
-            make_ufo_from_event(e, &game_ufo);
-            break;
-        }
-        }
+        ret = handle_event(e);
         ASSERT(ret == 0, "game process : %d error\n", ret);
-        free(e);
     }
 
     // physics
@@ -332,9 +259,7 @@ void game_process() {
         // player - rock
         if (e->type == ENTITY_ROCK) {
             // TODO actual collision not the mid point
-            local_player_colision = entity_check_collision_point(
-                    e,
-                    local_player.position);
+            local_player_colision = entity_check_collision_point(e, local_player.position);
             if (local_player_colision) {
                 debug_log_death(local_player.position, e);
                 break;
@@ -342,8 +267,7 @@ void game_process() {
         }
 
         // player - ufo bullet
-        else if (e->type == ENTITY_BULLET &&
-                 e->data.bullet.bullet_origin == BULLET_UFO) {
+        else if (e->type == ENTITY_BULLET && e->data.bullet.bullet_origin == BULLET_UFO) {
             if (dist(local_player.position, e->data.common.position) < 10.0f) {
                 local_player_colision = true;
             }
@@ -358,37 +282,9 @@ void game_process() {
     }
 
     if (local_player_colision) {
-        Event* e = malloc(sizeof(Event));
-        e->type = EVENT_LOCAL_PLAYER_DEATH;
-        e->event.player_death.angle_deg = local_player.angle_deg;
-        e->event.player_death.position = local_player.position;
-        e->event.player_death.velocity = local_player.velocity;
-
-        register_event_local(e); // animation / visuals only
-
-        Event* e_remote = malloc(sizeof(Event));
-        e_remote->type = EVENT_REMOTE_PLAYER_DEATH;
-        e_remote->event.player_death.angle_deg = local_player.angle_deg;
-        e_remote->event.player_death.position = local_player.position;
-        e_remote->event.player_death.velocity = local_player.velocity;
-
-        register_event_remote(e_remote);
-
-        // TODO
-        // something like player_regeister_name to handle lifes / game over
-        local_player.angle_deg = 0.0f;
-        local_player.position = (V2f32) { .x = WINDOW_WIDTH / 2,
-                                          .y = WINDOW_HEIGHT / 2 };
-        local_player.velocity = (V2f32) { 0 };
-        local_player.ex_flags.invincible = 1;
-        if (local_player.lives == 0) {
-            local_player.flags.perma_dead = 1;
-        }
-
-        local_player.lives = max(local_player.lives - 1, 0);
-
-        local_player.invincibility_timer = 3.0f;
-        local_player.flags.invisible = 1;
+        add_event_player_death(local_player.position,
+                               local_player.velocity,
+                               local_player.angle_deg);
     }
 
 player_collision_skip:
@@ -410,20 +306,16 @@ player_collision_skip:
             break;
         }
 
-        // check each bullet with ufo
-        if (game_ufo.form != UFO_NONE &&
-            entity_bullet->data.bullet.bullet_origin != BULLET_UFO) {
-            if (dist(game_ufo.position, entity_bullet->data.common.position) <
-                55.0f) {
+        // check ufo - bullet collision
+        if (game_ufo.form != UFO_NONE && entity_bullet->data.bullet.bullet_origin != BULLET_UFO) {
+            if (dist(game_ufo.position, entity_bullet->data.common.position) < 55.0f) {
 
                 entity_bullet->data.bullet.common.flags.remove = 1;
                 remote_kill_entity(entity_bullet->data.common.id, NONE);
 
-                add_event_ufo_kill((EventUfoKill) {
-                        .bullet_velocity = entity_bullet->data.common.velocity,
-                        .ufo_position = game_ufo.position,
-                        .ufo_velocity = game_ufo.velocity,
-                });
+                add_event_ufo_kill(game_ufo.position,
+                                   game_ufo.velocity,
+                                   entity_bullet->data.common.velocity);
 
                 ll_iter_next(&bullet_iter);
                 continue;
@@ -446,31 +338,25 @@ player_collision_skip:
                         entity_bullet->data.bullet.last_position);
 
                 if (colision) {
-                    Animation* a = create_sprinkle_animation(
-                            entity_bullet->data.common.position,
-                            rand_i32(10, 20),
-                            rand_i32(0, 255));
+                    Animation* a = create_sprinkle_animation(entity_bullet->data.common.position,
+                                                             rand_i32(10, 20),
+                                                             rand_i32(0, 255));
 
                     if (network_state.is_server) {
-                        add_event_from_rock_kill(
-                                entity->data.rock.rock_size,
-                                entity->data.rock.common.position,
-                                entity->data.rock.common.velocity);
+                        add_event_from_rock_kill(entity->data.rock.rock_size,
+                                                 entity->data.rock.common.position,
+                                                 entity->data.rock.common.velocity);
                     }
                     play_sound(sfx_rock[entity->data.rock.rock_size]);
                     ll_push_back(&state.animations, a);
 
-                    if (entity_bullet->data.bullet.bullet_origin ==
-                        BULLET_LOCAL) {
-                        player_add_score_rock_kill(&local_player,
-                                                   entity->data.rock.rock_size);
+                    if (entity_bullet->data.bullet.bullet_origin == BULLET_LOCAL) {
+                        player_add_score_rock_kill(&local_player, entity->data.rock.rock_size);
                     }
 
-                    if (entity_bullet->data.bullet.bullet_origin ==
-                        BULLET_REMOTE) {
-                        i32 points_to_add = player_add_score_rock_kill(
-                                &remote_player,
-                                entity->data.rock.rock_size);
+                    if (entity_bullet->data.bullet.bullet_origin == BULLET_REMOTE) {
+                        i32 points_to_add = player_add_score_rock_kill(&remote_player,
+                                                                       entity->data.rock.rock_size);
                         remote_add_points(points_to_add);
                     }
 
@@ -488,6 +374,25 @@ player_collision_skip:
         }
         ll_iter_next(&bullet_iter);
     }
+
+    // ufo - rock
+    ll_iter_assign_direction(&rock_iter, &state.entities, LL_ITER_H_TO_T);
+    while (!ll_iter_end(&rock_iter)) {
+        entity = ll_iter_peek(&rock_iter);
+        if (entity->type != ENTITY_ROCK) {
+            break;
+        }
+
+        // TODO
+        if (dist(game_ufo.position, entity->data.common.position) < 55.0f) {
+
+            entity->data.common.flags.remove = 1;
+            remote_kill_entity(entity->data.common.id, SPARKLE);
+
+            add_event_ufo_kill(game_ufo.position, game_ufo.velocity, entity->data.common.velocity);
+        }
+        ll_iter_next(&rock_iter);
+    }
 }
 
 void game_update_remote() {
@@ -503,12 +408,10 @@ void game_update_remote() {
     remote_player.lives = packet->lives;
 
     mtx_unlock(&network_state.remote_player_state.mutex);
-    queue_enqueue(&network_state.transmit.tx_queue,
-                  packet_from_player(&local_player));
+    queue_enqueue(&network_state.transmit.tx_queue, packet_from_player(&local_player));
 
     if (network_state.is_server) {
-        queue_enqueue(&network_state.transmit.tx_queue,
-                      packet_from_ufo(&game_ufo));
+        queue_enqueue(&network_state.transmit.tx_queue, packet_from_ufo(&game_ufo));
     } else {
         mtx_lock(&network_state.ufo_state.mutex);
         game_ufo.angle_deg = network_state.ufo_state.ufo.angle;
@@ -539,8 +442,7 @@ void game_render() {
         player_render_score(&remote_player, true);
     }
     player_render(&local_player, (SDL_Color) { LOCAL_PLAYER_COLOR, .a = 255 });
-    player_render(&remote_player,
-                  (SDL_Color) { REMOTE_PLAYER_COLOR, .a = 255 });
+    player_render(&remote_player, (SDL_Color) { REMOTE_PLAYER_COLOR, .a = 255 });
     ufo_render(&game_ufo);
 
     SDL_SetRenderDrawColor(state.renderer, 0, 0, 0, 0);
@@ -566,4 +468,61 @@ void game_teardown() {
     SDL_DestroyRenderer(state.renderer);
     SDL_DestroyWindow(state.window);
     SDL_Quit();
+}
+
+void add_event_from_rock_kill(RockSize killed_rock_size, V2f32 killed_pos, V2f32 killed_velocity) {
+
+    ASSERT(network_state.is_server, "client tried to add a rock kill\n");
+
+    if (killed_rock_size == ROCK_SMALL) {
+        return;
+    }
+
+    RockSize new_size = ROCK_MEDIUM;
+    if (killed_rock_size == ROCK_MEDIUM) {
+        new_size = ROCK_SMALL;
+    }
+
+    {
+        u8 seed = rand_i32(0, 255);
+        Event* e = malloc(sizeof(Event));
+        e->type = EVENT_TYPE_NEW_ROCK;
+        EventRock* rock = &e->event.rock;
+        *rock = (EventRock) {
+            .rock_size = new_size,
+            .jaggedness = rand_float(0.7f, 0.95f),
+            .num_vertices = rand_i32(8, ASTEROID_MAX_POINTS - 1),
+            .position = killed_pos,
+            .initial_velocity = (V2f32) { .x = rand_float_range(2, -2.7, -2.3, 2.3, 2.7) *
+                                               killed_velocity.y,
+                                         .y = rand_float_range(2, -2.7, -2.3, 2.3, 2.7) *
+                                               killed_velocity.x },
+            .seed = seed,
+            .id = rand() + 1
+        };
+
+        register_event_local(e);
+        register_event_remote(e);
+    }
+    {
+        u8 seed = rand_i32(0, 255);
+        Event* e = malloc(sizeof(Event));
+        e->type = EVENT_TYPE_NEW_ROCK;
+        EventRock* rock = &e->event.rock;
+        *rock = (EventRock) {
+            .rock_size = new_size,
+            .jaggedness = rand_float(0.7f, 0.95f),
+            .num_vertices = rand_i32(8, ASTEROID_MAX_POINTS - 1),
+            .position = killed_pos,
+            .initial_velocity = (V2f32) { .x = -rand_float_range(2, -2.7, -2.3, 2.3, 2.7) *
+                                               killed_velocity.y,
+                                         .y = -rand_float_range(2, -2.7, -2.3, 2.3, 2.7) *
+                                               killed_velocity.x },
+            .seed = seed,
+            .id = rand() + 1
+        };
+
+        register_event_local(e);
+        register_event_remote(e);
+    }
 }

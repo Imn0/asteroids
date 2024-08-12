@@ -10,8 +10,7 @@
 void player_render_impl(f32 angle_deg, V2f32 position, SDL_Color color);
 
 void player_init(Player* player) {
-    player->position = (V2f32) { .x = WINDOW_WIDTH / 2,
-                                 .y = WINDOW_HEIGHT / 2 };
+    player->position = (V2f32) { .x = WINDOW_WIDTH / 2, .y = WINDOW_HEIGHT / 2 };
     player->angle_deg = 0.0f;
     player->velocity = (V2f32) { .x = 0.0f, .y = 0.0f };
     player->flags = (player_flags_t) { 0 };
@@ -44,35 +43,10 @@ void player_shoot(Player* player) {
 
     player->shoot_timer = PLAYER_SHOOT_COOLDOWN;
 
-    player->velocity.x -= sinf(deg_to_rad(player->angle_deg)) *
-                          PLAYER_ACCELERATION_SPEED * 0.09f;
-    player->velocity.y += cosf(deg_to_rad(player->angle_deg)) *
-                          PLAYER_ACCELERATION_SPEED * 0.09f;
+    player->velocity.x -= sinf(deg_to_rad(player->angle_deg)) * PLAYER_ACCELERATION_SPEED * 0.09f;
+    player->velocity.y += cosf(deg_to_rad(player->angle_deg)) * PLAYER_ACCELERATION_SPEED * 0.09f;
 
-    // create local event
-    Event* e = malloc(sizeof(Event));
-    e->type = EVENT_TYPE_SHOOT;
-
-    i32 id = rand() + 1;
-
-    e->event.shoot = (EventShoot) { .position = player->position,
-                                    .angle_deg = player->angle_deg,
-                                    .initial_velocity = player->velocity,
-                                    .bullet_origin = BULLET_LOCAL,
-                                    .id = id };
-    register_event_local(e);
-    Event* e_for_remote = malloc(sizeof(Event));
-    e_for_remote->type = EVENT_TYPE_SHOOT;
-    e_for_remote->event.shoot = (EventShoot) {
-        .position = player->position,
-        .angle_deg = player->angle_deg,
-        .initial_velocity = player->velocity,
-        .bullet_origin = BULLET_REMOTE,
-        .id = id
-    };
-
-    register_event_remote(e_for_remote);
-    play_sound(SFX_SHOOT);
+    add_event_shoot(player->position, player->angle_deg, player->velocity, BULLET_LOCAL);
 }
 
 void player_process_input(Player* player, bool shoot) {
@@ -134,13 +108,10 @@ void player_render_score(Player* player, bool is_remote) {
 
     char score[64];
     snprintf(score, sizeof(score), "%d", player->score);
-    SDL_Surface* score_surface = TTF_RenderText_Solid(state.big_font,
-                                                      score,
-                                                      color);
+    SDL_Surface* score_surface = TTF_RenderText_Solid(state.big_font, score, color);
     SDL_Rect score_rect = { 20, y, score_surface->w, score_surface->h };
 
-    SDL_Texture* score_texture = SDL_CreateTextureFromSurface(state.renderer,
-                                                              score_surface);
+    SDL_Texture* score_texture = SDL_CreateTextureFromSurface(state.renderer, score_surface);
     SDL_RenderCopy(state.renderer, score_texture, NULL, &score_rect);
 
     SDL_FreeSurface(score_surface);
@@ -211,10 +182,10 @@ void player_update(Player* player, bool bool_is_remote) {
     // acceleration / movement
     if (player->flags.accelerate) {
         player_boop(player);
-        player->velocity.x += sinf(deg_to_rad(player->angle_deg)) *
-                              PLAYER_ACCELERATION_SPEED * delta_time;
-        player->velocity.y -= cosf(deg_to_rad(player->angle_deg)) *
-                              PLAYER_ACCELERATION_SPEED * delta_time;
+        player->velocity.x += sinf(deg_to_rad(player->angle_deg)) * PLAYER_ACCELERATION_SPEED *
+                              delta_time;
+        player->velocity.y -= cosf(deg_to_rad(player->angle_deg)) * PLAYER_ACCELERATION_SPEED *
+                              delta_time;
     } else {
         player->ex_flags.boop = 0;
     }
@@ -274,9 +245,7 @@ void player_render(Player* player, SDL_Color color) {
     player_render_impl(player->angle_deg, player->position, color);
 
     if (player->phantom_player.phantom_enabled) {
-        player_render_impl(player->angle_deg,
-                           player->phantom_player.position,
-                           color);
+        player_render_impl(player->angle_deg, player->phantom_player.position, color);
     }
 
     if (player->ex_flags.boop) {
