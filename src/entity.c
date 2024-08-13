@@ -167,10 +167,10 @@ void bullet_render(EntityBullet* bullet) {
         SDL_SetRenderDrawColor(state.renderer, 255, 64, 64, 255);
     }
 
-    SDL_Rect rect = { .w = 7,
+    SDL_Rect rect = (SDL_Rect){ .w = 7,
                       .h = 7,
-                      .x = (i32)bullet->common.position.x - rect.w / 2,
-                      .y = (i32)bullet->common.position.y - rect.h / 2 };
+                      .x = (i32)bullet->common.position.x - 7 / 2,
+                      .y = (i32)bullet->common.position.y - 7 / 2 };
 
     SDL_RenderFillRect(state.renderer, &rect);
     SDL_SetRenderDrawColor(state.renderer, 0, 0, 0, 0);

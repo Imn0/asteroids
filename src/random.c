@@ -1,5 +1,7 @@
 #include "common.h"
 
+#define MAX_RANGES 10
+
 static u8 RNG_idx = 0;
 static const u8 random_table[256] = {
     0,   8,   109, 220, 222, 241, 149, 107, 75,  248, 254, 140, 16,  66,  74,
@@ -47,12 +49,14 @@ i32 rand_i32_seed(i32 min, i32 max, u8 seed) {
 
 f32 rand_float_range_seed(u8 seed, i32 num_ranges, ...) {
 
+    ASSERT(num_ranges <= MAX_RANGES, "Too many random ranges given");
+
     va_list args;
     va_start(args, num_ranges);
 
     f32 total_length = 0.0;
-    f32 start[num_ranges];
-    f32 end[num_ranges];
+    f32 start[MAX_RANGES];
+    f32 end[MAX_RANGES];
     for (int i = 0; i < num_ranges; i++) {
         start[i] = (f32)va_arg(args, f64);
         end[i] = (f32)va_arg(args, f64);
@@ -77,12 +81,16 @@ f32 rand_float_range_seed(u8 seed, i32 num_ranges, ...) {
 }
 
 f32 rand_float_range(i32 num_ranges, ...) {
+
+    ASSERT(num_ranges <= MAX_RANGES, "Too many random ranges given");
+
+    
     va_list args;
     va_start(args, num_ranges);
 
     f32 total_length = 0.0;
-    f32 start[num_ranges];
-    f32 end[num_ranges];
+    f32 start[MAX_RANGES];
+    f32 end[MAX_RANGES];
     for (int i = 0; i < num_ranges; i++) {
         start[i] = (f32)va_arg(args, double);
         end[i] = (f32)va_arg(args, double);

@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <threads.h>
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -41,9 +42,7 @@ i32 network_consumer(void* args) {
             case PACKET_PLAYER: {
                 PlayerPacket* packet = &p->payload.player_packet;
                 mtx_lock(&network_state.remote_player_state.mutex);
-                memcpy(&network_state.remote_player_state,
-                       packet,
-                       sizeof(PlayerPacket));
+                memcpy(&network_state.remote_player_state, packet, sizeof(PlayerPacket));
                 mtx_unlock(&network_state.remote_player_state.mutex);
                 break;
             }
@@ -74,16 +73,13 @@ i32 network_consumer(void* args) {
     return OK;
 }
 
-void network_consumer_init() {
-    thrd_create(&network_state.consumer_thrd, network_consumer, NULL);
-}
+void network_consumer_init() { thrd_create(&network_state.consumer_thrd, network_consumer, NULL); }
 
 func common_init() {
     network_consumer_init();
     atomic_store(&network_state.running, true);
 
-    if (mtx_init(&network_state.remote_player_state.mutex, mtx_plain) !=
-        thrd_success) {
+    if (mtx_init(&network_state.remote_player_state.mutex, mtx_plain) != thrd_success) {
         return ERR_MTX_INIT;
     }
 
@@ -122,8 +118,7 @@ func server_init() {
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = 0; // Use 0 to bind to any open port
 
-    if (bind(ListenSocket, (struct sockaddr*)&addr, sizeof(addr)) ==
-        SOCKET_ERROR) {
+    if (bind(ListenSocket, (struct sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR) {
         printf("bind failed with error: %d\n", WSAGetLastError());
         closesocket(ListenSocket);
         WSACleanup();
@@ -144,9 +139,7 @@ func server_init() {
     // accept incoming connection
     struct sockaddr_storage caddr;
     socklen_t caddr_len = sizeof(caddr);
-    SOCKET ClientSocket = accept(ListenSocket,
-                                 (struct sockaddr*)&caddr,
-                                 &caddr_len);
+    SOCKET ClientSocket = accept(ListenSocket, (struct sockaddr*)&caddr, &caddr_len);
     if (ClientSocket == INVALID_SOCKET) {
         printf("accept failed with error: %d\n", WSAGetLastError());
         closesocket(ListenSocket);
@@ -155,12 +148,8 @@ func server_init() {
     }
 
     printf("connection accepted\n");
-    thrd_create(&network_state.receive.receive_thrd,
-                receive_packets,
-                (void*)(int*)ClientSocket);
-    thrd_create(&network_state.transmit.transmit_thrd,
-                send_packets,
-                (void*)(int*)ClientSocket);
+    thrd_create(&network_state.receive.receive_thrd, receive_packets, (void*)(int*)ClientSocket);
+    thrd_create(&network_state.transmit.transmit_thrd, send_packets, (void*)(int*)ClientSocket);
 #else
     const i32 fd = socket(PF_INET, SOCK_STREAM, 0);
     struct sockaddr_in addr = { 0 };
@@ -180,12 +169,8 @@ func server_init() {
     network_state.socket_fd = accept(fd, (struct sockaddr*)&caddr, &caddr_len);
 
     printf("connection accepted\n");
-    thrd_create(&network_state.receive.receive_thrd,
-                receive_packets,
-                &network_state.socket_fd);
-    thrd_create(&network_state.transmit.transmit_thrd,
-                send_packets,
-                &network_state.socket_fd);
+    thrd_create(&network_state.receive.receive_thrd, receive_packets, &network_state.socket_fd);
+    thrd_create(&network_state.transmit.transmit_thrd, send_packets, &network_state.socket_fd);
 #endif
 
     return OK;
@@ -226,30 +211,20 @@ func client_init(i32 client_port) {
         return ERR_GENRIC_BAD;
     }
 
-    thrd_create(&network_state.receive.receive_thrd,
-                receive_packets,
-                (void*)(int*)fd);
-    thrd_create(&network_state.transmit.transmit_thrd,
-                send_packets,
-                (void*)(int*)fd);
+    thrd_create(&network_state.receive.receive_thrd, receive_packets, (void*)(int*)fd);
+    thrd_create(&network_state.transmit.transmit_thrd, send_packets, (void*)(int*)fd);
 #else
     network_state.socket_fd = socket(PF_INET, SOCK_STREAM, 0);
     struct sockaddr_in addr = { 0 };
     addr.sin_family = AF_INET;
     addr.sin_port = htons((short)client_port);
     inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
-    if (connect(network_state.socket_fd,
-                (struct sockaddr*)&addr,
-                sizeof(addr))) {
+    if (connect(network_state.socket_fd, (struct sockaddr*)&addr, sizeof(addr))) {
         return ERR_CONNECT;
     }
 
-    thrd_create(&network_state.receive.receive_thrd,
-                receive_packets,
-                &network_state.socket_fd);
-    thrd_create(&network_state.transmit.transmit_thrd,
-                send_packets,
-                &network_state.socket_fd);
+    thrd_create(&network_state.receive.receive_thrd, receive_packets, &network_state.socket_fd);
+    thrd_create(&network_state.transmit.transmit_thrd, send_packets, &network_state.socket_fd);
 #endif
     return OK;
 }
