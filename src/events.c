@@ -6,7 +6,7 @@
 
 func handle_event(Event* e) {
     ASSERT(e != NULL, "??????\n");
-    funct_ret_t ret;
+    funct_ret_t ret = OK;
     switch (e->type) {
     case EVENT_REMOVE_ENTITY: {
         ret = handle_event_remove_entity(&e->event.remove_entity);

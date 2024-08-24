@@ -79,7 +79,7 @@ void player_process_input(Player* player, bool shoot) {
 }
 
 i32 player_add_score_rock_kill(Player* player, RockSize rock_size) {
-    u32 additional_score;
+    u32 additional_score = 0;
     switch (rock_size) {
     case ROCK_BIG:
         additional_score = BIG_ROCK_KILL_POINTS;

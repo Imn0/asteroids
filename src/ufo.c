@@ -5,7 +5,7 @@
 
 #define UFO_SEGMENTS_SIZE 10
 
-const static V2f32 ufo_segments[UFO_SEGMENTS_SIZE][2] = {
+static const V2f32 ufo_segments[UFO_SEGMENTS_SIZE][2] = {
     { { -32, 0 },   { -25, 10 }  },
     { { -32, 0 },   { -25, -10 } },
     { { -32, 0 },   { 32, 0 }    },
