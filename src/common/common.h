@@ -59,6 +59,7 @@ i32 rand_i32_seed(i32 min, i32 max, u8 seed);
 f32 rand_float_range(i32 num_ranges, ...);
 f32 rand_float_range_seed(u8 seed, i32 num_ranges, ...);
 
+#ifndef _MSC_VER
 #define min(_a, _b)                                                                                \
     ({                                                                                             \
         __typeof__(_a) __a = (_a), __b = (_b);                                                     \
@@ -69,6 +70,8 @@ f32 rand_float_range_seed(u8 seed, i32 num_ranges, ...);
         __typeof__(_a) __a = (_a), __b = (_b);                                                     \
         __a > __b ? __a : __b;                                                                     \
     })
+#endif
+
 static inline f32 deg_to_rad(f32 d) { return d * (PI / 180.0f); }
 static inline f32 dot(V2f32 v0, V2f32 v1) { return (v0.x * v1.x) + (v0.y * v1.y); }
 static inline f32 length(V2f32 vl) { return sqrtf(dot(vl, vl)); }
