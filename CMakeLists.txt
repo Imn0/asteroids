@@ -9,12 +9,20 @@ endif()
 
 include_directories(src/headers src/common)
 
-if(NOT MSVC)
-    find_package(SDL2 REQUIRED)
-    find_package(SDL2_mixer REQUIRED)
-    find_package(SDL2_image REQUIRED)
-    find_package(SDL2_ttf REQUIRED)
-endif()
+set(SDL2_DIR "${CMAKE_SOURCE_DIR}/SDL")
+set(SDL2_IMAGE_DIR "${CMAKE_SOURCE_DIR}/SDL_image")
+set(SDL2_MIXER_DIR "${CMAKE_SOURCE_DIR}/SDL_mixer")
+set(SDL2_TTF_DIR "${CMAKE_SOURCE_DIR}/SDL_ttf")
+
+set(SDL2_INCLUDE_DIRS "${SDL2_DIR}/include")
+set(SDL2_IMAGE_INCLUDE_DIRS "${SDL2_IMAGE_DIR}/include")
+set(SDL2_MIXER_INCLUDE_DIRS "${SDL2_MIXER_DIR}/include")
+set(SDL2_TTF_INCLUDE_DIRS "${SDL2_TTF_DIR}/include")
+
+add_subdirectory(${SDL2_DIR} EXCLUDE_FROM_ALL)
+add_subdirectory(${SDL2_IMAGE_DIR} EXCLUDE_FROM_ALL)
+add_subdirectory(${SDL2_MIXER_DIR} EXCLUDE_FROM_ALL)
+add_subdirectory(${SDL2_TTF_DIR} EXCLUDE_FROM_ALL)
 
 file(GLOB_RECURSE SRC
     "src/*.c"
@@ -24,40 +32,28 @@ file(GLOB_RECURSE SRC
 )
 add_executable(asteroids ${SRC})
 
+target_include_directories(asteroids PRIVATE
+    ${SDL2_INCLUDE_DIRS}
+    ${SDL2_IMAGE_INCLUDE_DIRS}
+    ${SDL2_MIXER_INCLUDE_DIRS}
+    ${SDL2_TTF_INCLUDE_DIRS}
+)
+
 if(MSVC)
-set(CMAKE_C_FLAGS "/O2 /experimental:c11atomics /Tc" CACHE INTERNAL "")
+    set(CMAKE_C_FLAGS "/O2 /experimental:c11atomics /Tc" CACHE INTERNAL "")
+    target_link_libraries(asteroids PRIVATE ws2_32)
+endif()
 
-    set(SDL2_INCLUDE_DIRS "C:/VC_lib/SDL2-2.30.5/include" CACHE PATH "Path to SDL2 include directory")
-    set(SDL2_LIBRARIES "C:/VC_lib/SDL2-2.30.5/lib/x64" CACHE PATH "Path to SDL2 library directory")
-    set(SDL2_IMAGE_INCLUDE_DIRS "C:/VC_lib/SDL2_image-2.8.2/include" CACHE PATH "Path to SDL2_image include directory")
-    set(SDL2_IMAGE_LIBRARIES "C:/VC_lib/SDL2_image-2.8.2/lib/x64" CACHE PATH "Path to SDL2_image library directory")
-    set(SDL2_TTF_INCLUDE_DIRS "C:/VC_lib/SDL2_ttf-2.22.0/include" CACHE PATH "Path to SDL2_ttf include directory")
-    set(SDL2_TTF_LIBRARIES "C:/VC_lib/SDL2_ttf-2.22.0/lib/x64" CACHE PATH "Path to SDL2_ttf library directory")
-    set(SDL2_MIXER_INCLUDE_DIRS "C:/VC_lib/SDL2_mixer-2.8.0/include" CACHE PATH "Path to SDL2_mixer include directory")
-    set(SDL2_MIXER_LIBRARIES "C:/VC_lib/SDL2_mixer-2.8.0/lib/x64" CACHE PATH "Path to SDL2_mixer library directory")
+target_link_libraries(asteroids PRIVATE
+    SDL2::SDL2main
+    SDL2::SDL2
+    SDL2_image::SDL2_image
+    SDL2_mixer::SDL2_mixer
+    SDL2_ttf::SDL2_ttf
+)
 
-    include_directories(${SDL2_INCLUDE_DIRS})
-    include_directories(${SDL2_IMAGE_INCLUDE_DIRS})
-    include_directories(${SDL2_TTF_INCLUDE_DIRS})
-    include_directories(${SDL2_MIXER_INCLUDE_DIRS})
-
-    target_link_libraries(asteroids PRIVATE 
-        ws2_32
-        ${SDL2_LIBRARIES}/SDL2.lib
-        ${SDL2_LIBRARIES}/SDL2main.lib
-        ${SDL2_IMAGE_LIBRARIES}/SDL2_image.lib
-        ${SDL2_TTF_LIBRARIES}/SDL2_ttf.lib
-        ${SDL2_MIXER_LIBRARIES}/SDL2_mixer.lib
-    )
-else()
-    target_include_directories(asteroids
-        PRIVATE ${SDL2_INCLUDE_DIRS}
-        PRIVATE ${SDL2_IMAGE_INCLUDE_DIRS}
-        PRIVATE ${SDL2_TTF_INCLUDE_DIRS}
-        PRIVATE ${SDL2_MIXER_INCLUDE_DIRS}
-    )
-
-    target_link_libraries(asteroids PRIVATE m ${SDL2_LIBRARIES} SDL2_image::SDL2_image SDL2_ttf::SDL2_ttf SDL2_mixer::SDL2_mixer)
+if(UNIX AND NOT APPLE)
+    target_link_libraries(asteroids PRIVATE m)
 endif()
 
 set_target_properties(asteroids PROPERTIES
