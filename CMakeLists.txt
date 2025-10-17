@@ -9,16 +9,22 @@ endif()
 
 include_directories(src/headers src/common)
 
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
+set(SDL_SHARED OFF CACHE BOOL "Build SDL shared library" FORCE)
+set(SDL_STATIC ON CACHE BOOL "Build SDL static library" FORCE)
+
 set(SDL2_DIR "${CMAKE_SOURCE_DIR}/SDL")
 set(SDL2_IMAGE_DIR "${CMAKE_SOURCE_DIR}/SDL_image")
 set(SDL2_MIXER_DIR "${CMAKE_SOURCE_DIR}/SDL_mixer")
 set(SDL2_TTF_DIR "${CMAKE_SOURCE_DIR}/SDL_ttf")
 
+# Set include directories for bundled SDL
 set(SDL2_INCLUDE_DIRS "${SDL2_DIR}/include")
 set(SDL2_IMAGE_INCLUDE_DIRS "${SDL2_IMAGE_DIR}/include")
 set(SDL2_MIXER_INCLUDE_DIRS "${SDL2_MIXER_DIR}/include")
 set(SDL2_TTF_INCLUDE_DIRS "${SDL2_TTF_DIR}/include")
 
+# Build bundled SDL libraries statically
 add_subdirectory(${SDL2_DIR} EXCLUDE_FROM_ALL)
 add_subdirectory(${SDL2_IMAGE_DIR} EXCLUDE_FROM_ALL)
 add_subdirectory(${SDL2_MIXER_DIR} EXCLUDE_FROM_ALL)
@@ -42,14 +48,16 @@ target_include_directories(asteroids PRIVATE
 if(MSVC)
     set(CMAKE_C_FLAGS "/O2 /experimental:c11atomics /Tc" CACHE INTERNAL "")
     target_link_libraries(asteroids PRIVATE ws2_32)
+    # Link against static runtime on Windows
+    set_property(TARGET asteroids PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
 target_link_libraries(asteroids PRIVATE
+    SDL2::SDL2-static
     SDL2::SDL2main
-    SDL2::SDL2
-    SDL2_image::SDL2_image
-    SDL2_mixer::SDL2_mixer
-    SDL2_ttf::SDL2_ttf
+    SDL2_image::SDL2_image-static
+    SDL2_mixer::SDL2_mixer-static
+    SDL2_ttf::SDL2_ttf-static
 )
 
 if(UNIX AND NOT APPLE)
